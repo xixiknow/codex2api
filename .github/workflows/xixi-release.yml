@@ -8,6 +8,13 @@ name: xixi Release
 
 on:
   workflow_dispatch:
+  # 非默认分支上的工作流必须先运行过一次，GitHub 才允许按名称手动触发；
+  # 这里仅在本文件变更时触发一次"注册"运行，所有作业都会跳过，不会发版。
+  push:
+    branches:
+      - xixi-main
+    paths:
+      - '.github/workflows/xixi-release.yml'
 
 permissions:
   contents: write
@@ -19,6 +26,7 @@ concurrency:
 
 jobs:
   guard:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Only release from xixi-main
