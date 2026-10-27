@@ -26,6 +26,7 @@ import { formatUsageNumber as formatTokens } from '../lib/usageFormat'
 import { buildModelShareData, formatSharePercent, type ModelShareMetric } from '../lib/usageInsights'
 import './usage-insights.css'
 import { getUsageTokenBreakdown } from '../lib/usageTokenDisplay'
+import { LATENCY_BAR_FROM_CLASSES, LATENCY_BAR_TO_CLASSES, LATENCY_BAR_VIA_CLASSES, LATENCY_TEXT_CLASSES, durationSeverity, firstTokenSeverity, tpsSeverity } from '../lib/latencyHealth'
 import { formatBeijingTime } from '../utils/time'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -39,21 +40,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { createLucideIcon, Activity, Box, Clock, Zap, Sparkles, AlertTriangle, Search, Brain, DatabaseZap, X, Image as ImageIcon, Info, CircleDollarSign, BarChart3, KeyRound, Route, SlidersHorizontal, ShieldAlert, RefreshCw, ChevronDown, RotateCcw, PlugZap, FlaskConical } from 'lucide-react'
+import { Activity, Archive, ArrowDown, ArrowUp, SquarePen, Box, Clock, Zap, Sparkles, AlertTriangle, Search, Brain, DatabaseZap, X, Image as ImageIcon, Info, CircleDollarSign, BarChart3, KeyRound, Route, SlidersHorizontal, ShieldAlert, RefreshCw, ChevronDown, RotateCcw, PlugZap, FlaskConical } from 'lucide-react'
 
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
-
-// 缓存写入图标:取 Lucide (ISC) 的 database-plus,与读取用的 DatabaseZap 成对。
-// 锁定的 lucide-react 1.0.1 还没收录它,升级前在这里按同一路径注册。
-const DatabasePlus = createLucideIcon('database-plus', [
-  ['path', { d: 'M19 16v6', key: 'tddt3s' }],
-  ['path', { d: 'M21 12.536V5', key: 'zeza6i' }],
-  ['path', { d: 'M22 19h-6', key: 'vcuq98' }],
-  ['path', { d: 'M3 12A9 3 0 0 0 15.1824 14.8061', key: 'ukc3b1' }],
-  ['path', { d: 'M3 5V19A9 3 0 0 0 13.318 21.968', key: '1lyu4j' }],
-  ['ellipse', { cx: '12', cy: '5', rx: '9', ry: '3', key: 'msslwz' }],
-])
 
 /** Color ramp for reasoning effort: cool/muted → hot/intense. */
 function getReasoningEffortBadgeClassName(effort: string): string {
@@ -1292,10 +1282,29 @@ const usageTableTextClass = 'text-[14px]'
 const usageTableMonoClass = 'font-mono text-[13px] tabular-nums'
 const usageTableBadgeClass = 'text-[13px]'
 
-function UsageInputTokenCount({ log }: { log: UsageLog }) {
+function UsageTokenTooltipRow({ label, value, valueClassName = 'font-medium text-white' }: { label: string; value: string; valueClassName?: string }) {
+  return (
+    <div className="flex items-center justify-between gap-6">
+      <span className="text-slate-400">{label}</span>
+      <span className={`font-geist-mono tabular-nums ${valueClassName}`}>{value}</span>
+    </div>
+  )
+}
+
+/**
+ * TOKEN + 缓存合并列（样式参考 sub2api 用量明细）：
+ * 首行 ↓输入 ↑输出（有推理再追加），次行 读缓存 / 写缓存（含 1h 标记），右侧 ⓘ 悬浮看完整明细。
+ */
+function UsageTokenCell({ log }: { log: UsageLog }) {
   const { t } = useTranslation()
   const tokens = getUsageTokenBreakdown(log)
-  const title = tokens.isClaude
+  const hasIO = log.status_code < 400 && (tokens.totalInputTokens > 0 || tokens.outputTokens > 0)
+  const hasCache = tokens.cacheReadTokens > 0 || tokens.cacheWriteTokens > 0
+  if (!hasIO && !hasCache) {
+    return <span className={`${usageTableMonoClass} text-muted-foreground/50`}>-</span>
+  }
+  const reasoningTokens = Math.max(0, log.reasoning_tokens || 0)
+  const inputTitle = tokens.isClaude
     ? t('usage.claudeInputTooltip', {
       input: formatTokens(tokens.inputTokens, true),
       total: formatTokens(tokens.totalInputTokens, true),
@@ -1303,38 +1312,90 @@ function UsageInputTokenCount({ log }: { log: UsageLog }) {
       write: formatTokens(tokens.cacheWriteTokens, true),
     })
     : `${t('usage.inputTokens')}: ${formatTokens(tokens.inputTokens, true)}`
-
-  return <span className="text-blue-500" title={title}>↓{formatTokens(tokens.inputTokens, true)}</span>
-}
-
-function UsageCacheBadges({ log, align = 'end' }: { log: UsageLog; align?: 'start' | 'end' }) {
-  const { t } = useTranslation()
-  const tokens = getUsageTokenBreakdown(log)
-  if (tokens.cacheReadTokens === 0 && tokens.cacheWriteTokens === 0) {
-    return <span className={`${usageTableMonoClass} text-muted-foreground/50`}>-</span>
-  }
   const readTitle = t('usage.cacheReadTooltip', { tokens: formatTokens(tokens.cacheReadTokens, true) })
   const writeTitle = t('usage.cacheCreateTooltip', {
     tokens: formatTokens(tokens.cacheWriteTokens, true),
     m5: formatTokens(tokens.cacheWrite5mTokens, true),
     h1: formatTokens(tokens.cacheWrite1hTokens, true),
   })
+  // 已入库的 input 对 Claude 含缓存读写、对 OpenAI 含 cached 子集，直接相加即总量
+  const total = tokens.totalInputTokens + tokens.outputTokens
 
-  // 读/写两枚徽章横排(空间不够再换行),不再竖着堆叠把整行撑高
   return (
-    <div className={cn('flex flex-wrap items-center gap-1', align === 'start' ? 'justify-start' : 'justify-end')}>
-      {tokens.cacheReadTokens > 0 && (
-        <Badge variant="outline" title={readTitle} aria-label={readTitle} className={`${usageTableBadgeClass} gap-1 border-transparent bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400`}>
-          <DatabaseZap className="size-3.5" aria-hidden="true" />
-          {formatTokens(tokens.cacheReadTokens, true)}
-        </Badge>
-      )}
-      {tokens.cacheWriteTokens > 0 && (
-        <Badge variant="outline" title={writeTitle} aria-label={writeTitle} className={`${usageTableBadgeClass} gap-1 border-transparent bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400`}>
-          <DatabasePlus className="size-3.5" aria-hidden="true" />
-          {formatTokens(tokens.cacheWriteTokens, true)}
-        </Badge>
-      )}
+    <div className="inline-flex items-center gap-1.5 text-left">
+      <div className="space-y-1 text-[13px]">
+        {hasIO && (
+          <div className="flex items-center gap-2 whitespace-nowrap">
+            <span className="inline-flex items-center gap-1" title={inputTitle}>
+              <ArrowDown className="size-3.5 text-emerald-500" aria-hidden="true" />
+              <span className="font-medium tabular-nums text-foreground">{formatTokens(tokens.inputTokens, true)}</span>
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <ArrowUp className="size-3.5 text-violet-500" aria-hidden="true" />
+              <span className="font-medium tabular-nums text-foreground">{formatTokens(tokens.outputTokens, true)}</span>
+            </span>
+            {reasoningTokens > 0 && (
+              <span className="inline-flex items-center gap-1">
+                <Brain className="size-3.5 text-amber-500" aria-hidden="true" />
+                <span className="font-medium tabular-nums text-amber-600 dark:text-amber-400">{formatTokens(reasoningTokens, true)}</span>
+              </span>
+            )}
+          </div>
+        )}
+        {hasCache && (
+          <div className="flex items-center gap-2 whitespace-nowrap">
+            {tokens.cacheReadTokens > 0 && (
+              <span className="inline-flex items-center gap-1" title={readTitle}>
+                <Archive className="size-3.5 text-sky-500" aria-hidden="true" />
+                <span className="font-medium tabular-nums text-sky-600 dark:text-sky-400">{formatTokens(tokens.cacheReadTokens)}</span>
+              </span>
+            )}
+            {tokens.cacheWriteTokens > 0 && (
+              <span className="inline-flex items-center gap-1" title={writeTitle}>
+                <SquarePen className="size-3.5 text-amber-500" aria-hidden="true" />
+                <span className="font-medium tabular-nums text-amber-600 dark:text-amber-400">{formatTokens(tokens.cacheWriteTokens)}</span>
+                {tokens.cacheWrite1hTokens > 0 && (
+                  <span className="inline-flex items-center rounded px-1 py-px text-[10px] font-medium leading-tight bg-orange-100 text-orange-600 ring-1 ring-inset ring-orange-200 dark:bg-orange-500/20 dark:text-orange-400 dark:ring-orange-500/30">1h</span>
+                )}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            aria-label={t('usage.tokenDetails')}
+            className="group flex size-4 shrink-0 cursor-help items-center justify-center rounded-full bg-muted transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:hover:bg-blue-900/50"
+          >
+            <Info className="size-3 text-muted-foreground transition-colors group-hover:text-blue-500" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="right" sideOffset={8} className="max-w-none whitespace-nowrap rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-xs text-slate-50 shadow-xl">
+          <div className="space-y-1.5">
+            <div className="mb-1 text-xs font-semibold text-slate-300">{t('usage.tokenDetails')}</div>
+            <UsageTokenTooltipRow label={t('usage.inputTokens')} value={formatTokens(tokens.inputTokens, true)} />
+            <UsageTokenTooltipRow label={t('usage.outputTokens')} value={formatTokens(tokens.outputTokens, true)} />
+            {reasoningTokens > 0 && (
+              <UsageTokenTooltipRow label={t('usage.reasoningTokens')} value={formatTokens(reasoningTokens, true)} />
+            )}
+            {tokens.cacheWrite5mTokens > 0 && (
+              <UsageTokenTooltipRow label={t('usage.cacheWrite5mTokens')} value={formatTokens(tokens.cacheWrite5mTokens, true)} />
+            )}
+            {tokens.cacheWrite1hTokens > 0 && (
+              <UsageTokenTooltipRow label={t('usage.cacheWrite1hTokens')} value={formatTokens(tokens.cacheWrite1hTokens, true)} />
+            )}
+            {tokens.cacheReadTokens > 0 && (
+              <UsageTokenTooltipRow label={t('usage.cacheReadTokens')} value={formatTokens(tokens.cacheReadTokens, true)} />
+            )}
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-6 border-t border-slate-700 pt-1.5">
+            <span className="text-slate-400">{t('usage.totalTokens')}</span>
+            <span className="font-geist-mono font-semibold tabular-nums text-blue-400">{formatTokens(total, true)}</span>
+          </div>
+        </TooltipContent>
+      </Tooltip>
     </div>
   )
 }
@@ -1435,7 +1496,7 @@ function EmptyPanel({ accent, icon, text }: { accent: PanelAccentKey; icon: Reac
   )
 }
 
-type UsageTableColumn = 'status' | 'error' | 'model' | 'account' | 'apiKey' | 'clientIp' | 'userAgent' | 'endpoint' | 'type' | 'token' | 'cost' | 'cached' | 'wsAcquire' | 'tokensPerSec' | 'timing' | 'time'
+type UsageTableColumn = 'status' | 'error' | 'model' | 'account' | 'apiKey' | 'clientIp' | 'userAgent' | 'endpoint' | 'type' | 'token' | 'cost' | 'wsAcquire' | 'timing' | 'time'
 
 const USAGE_COLUMN_DEFINITIONS: Array<{ key: UsageTableColumn; labelKey: string }> = [
   { key: 'status', labelKey: 'usage.tableStatus' },
@@ -1447,10 +1508,8 @@ const USAGE_COLUMN_DEFINITIONS: Array<{ key: UsageTableColumn; labelKey: string 
   { key: 'endpoint', labelKey: 'usage.tableEndpoint' },
   { key: 'type', labelKey: 'usage.tableType' },
   { key: 'token', labelKey: 'usage.tableToken' },
-  { key: 'cached', labelKey: 'usage.tableCached' },
   { key: 'wsAcquire', labelKey: 'usage.tableWsAcquire' },
   { key: 'timing', labelKey: 'usage.tableTiming' },
-  { key: 'tokensPerSec', labelKey: 'usage.tableTokensPerSec' },
   { key: 'cost', labelKey: 'usage.tableCost' },
   // 错误摘要宽度随内容波动，放倒数第二列避免撑开中段（issue #522）
   { key: 'error', labelKey: 'usage.tableError' },
@@ -1473,11 +1532,9 @@ const DEFAULT_USAGE_VISIBLE_COLUMNS: Record<UsageTableColumn, boolean> = {
   type: true,
   token: true,
   cost: true,
-  cached: true,
   // 取得连接耗时属于深挖排障信息，默认隐藏，需在列设置中手动开启
   wsAcquire: false,
-  tokensPerSec: true,
-  // 首字 + 总耗时聚合为「用时」一列
+  // 首字 + 总耗时 + tok/s 聚合为「用时」一列
   timing: true,
   time: true,
 }
@@ -1506,117 +1563,24 @@ function formatTokensPerSec(value: number): string {
   if (!Number.isFinite(value) || value <= 0) return '-'
   if (value >= 1000) return `${(value / 1000).toFixed(1)}k`
   if (value >= 100) return value.toFixed(0)
-  if (value >= 10) return value.toFixed(1)
-  return value.toFixed(2)
+  return value.toFixed(1)
 }
 
-function tokensPerSecClassName(value: number): string {
-  // Rough bands for visual scan; absolute numbers vary by model.
-  if (value >= 80) return 'text-emerald-600 dark:text-emerald-400'
-  if (value >= 30) return 'text-foreground'
-  if (value >= 10) return 'text-amber-600 dark:text-amber-400'
-  return 'text-red-500 dark:text-red-400'
-}
-
-function TokensPerSecCell({ log }: { log: UsageLog }) {
-  const value = computeOutputTokensPerSec(log)
-  if (value == null) {
-    return <span className={`${usageTableMonoClass} text-muted-foreground/50`}>-</span>
-  }
-  return (
-    <span className={`${usageTableMonoClass} ${tokensPerSecClassName(value)}`} title={`${value.toFixed(2)} tok/s`}>
-      {formatTokensPerSec(value)}
-      <span className="ml-0.5 text-[11px] font-medium opacity-70">tok/s</span>
-    </span>
-  )
-}
-
+// 超过 1 分钟简化为 "Xm Ys"，免去人工换算（超过 1 小时再进位为 "Xh Ym"）
 function formatLatencyMs(ms: number): string {
   if (!Number.isFinite(ms) || ms <= 0) return '-'
-  if (ms >= 1000) return `${(ms / 1000).toFixed(1)}s`
-  return `${Math.round(ms)}ms`
-}
-
-type TimingTone = 'good' | 'warn' | 'bad' | 'muted'
-
-function firstTokenTone(ms: number): TimingTone {
-  if (ms <= 0) return 'muted'
-  if (ms > 5000) return 'bad'
-  if (ms > 2000) return 'warn'
-  return 'good'
-}
-
-function durationTone(ms: number): TimingTone {
-  if (ms <= 0) return 'muted'
-  if (ms > 30000) return 'bad'
-  if (ms > 10000) return 'warn'
-  return 'good'
-}
-
-/** 数值色阶：在各自胶囊内单独表意快慢。 */
-const TIMING_VALUE_TONE: Record<TimingTone, string> = {
-  good: 'text-emerald-700 dark:text-emerald-300',
-  warn: 'text-amber-700 dark:text-amber-300',
-  bad: 'text-red-600 dark:text-red-400',
-  muted: 'text-muted-foreground',
+  if (ms < 1000) return `${Math.round(ms)}ms`
+  if (ms < 60_000) return `${(ms / 1000).toFixed(2)}s`
+  const totalSec = Math.round(ms / 1000)
+  if (totalSec < 3600) return `${Math.floor(totalSec / 60)}m ${totalSec % 60}s`
+  return `${Math.floor(totalSec / 3600)}h ${Math.floor((totalSec % 3600) / 60)}m`
 }
 
 /**
- * 首字 / 耗时 用固定身份色胶囊区分（蓝 vs 紫），
- * 扫表时即使数值色相同也能立刻分辨是哪一项。
+ * 首字 / 总耗时 / tok/s 合并列（样式参考 sub2api 用量明细）：三行竖排，
+ * 左侧色条上中下三段分别随首字、总耗时、tok/s 档，段间短渐变过渡，便于纵向扫视整体健康状况。
+ * 无首字或无 tok/s 的段沿用总耗时档。
  */
-const TIMING_PILL_SHELL = {
-  first:
-    'bg-sky-500/12 ring-1 ring-inset ring-sky-500/25 dark:bg-sky-500/16 dark:ring-sky-400/30',
-  duration:
-    'bg-violet-500/12 ring-1 ring-inset ring-violet-500/25 dark:bg-violet-500/16 dark:ring-violet-400/30',
-  muted: 'bg-muted/60 ring-1 ring-inset ring-border',
-} as const
-
-const TIMING_PILL_LABEL = {
-  first: 'text-sky-700/85 dark:text-sky-300/90',
-  duration: 'text-violet-700/85 dark:text-violet-300/90',
-  muted: 'text-muted-foreground',
-} as const
-
-function TimingPill({
-  kind,
-  label,
-  valueMs,
-  tone,
-}: {
-  kind: 'first' | 'duration'
-  label: string
-  valueMs: number
-  tone: TimingTone
-}) {
-  const display = valueMs > 0 ? formatLatencyMs(valueMs) : '-'
-  const shell = tone === 'muted' ? TIMING_PILL_SHELL.muted : TIMING_PILL_SHELL[kind]
-  const labelClass = tone === 'muted' ? TIMING_PILL_LABEL.muted : TIMING_PILL_LABEL[kind]
-
-  return (
-    <span
-      className={cn(
-        'inline-flex h-5 items-center gap-0.5 rounded-full px-1.5 whitespace-nowrap',
-        shell,
-      )}
-    >
-      <span className={cn('text-[10px] font-semibold leading-none tracking-tight', labelClass)}>
-        {label}
-      </span>
-      <span
-        className={cn(
-          'font-mono text-[11px] font-bold tabular-nums leading-none',
-          TIMING_VALUE_TONE[tone],
-        )}
-      >
-        {display}
-      </span>
-    </span>
-  )
-}
-
-/** 首字 + 总耗时聚合列：横向双色胶囊，避免把整行撑高。 */
 function TimingCell({ log }: { log: UsageLog }) {
   const { t } = useTranslation()
   const firstMs = log.first_token_ms || 0
@@ -1624,30 +1588,34 @@ function TimingCell({ log }: { log: UsageLog }) {
   if (firstMs <= 0 && durationMs <= 0) {
     return <span className={`${usageTableMonoClass} text-muted-foreground/50`}>-</span>
   }
-
-  const firstLabel = firstMs > 0 ? formatLatencyMs(firstMs) : '-'
-  const durationLabel = durationMs > 0 ? formatLatencyMs(durationMs) : '-'
-  const title = [
-    firstMs > 0 ? `${t('usage.timingFirst')}: ${firstLabel}` : null,
-    durationMs > 0 ? `${t('usage.timingDuration')}: ${durationLabel}` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ')
+  const tps = computeOutputTokensPerSec(log)
+  const duration = durationSeverity(durationMs)
+  const barClassName = cn(
+    'w-1 shrink-0 rounded-full bg-gradient-to-b from-30% via-50% to-70%',
+    LATENCY_BAR_FROM_CLASSES[firstMs > 0 ? firstTokenSeverity(firstMs) : duration],
+    LATENCY_BAR_VIA_CLASSES[duration],
+    LATENCY_BAR_TO_CLASSES[tps != null ? tpsSeverity(tps) : duration],
+  )
+  const labelClass = 'text-muted-foreground'
+  const emptyClass = 'text-muted-foreground/50'
 
   return (
-    <div className="inline-flex items-center gap-1" title={title || undefined}>
-      <TimingPill
-        kind="first"
-        label={t('usage.timingFirst')}
-        valueMs={firstMs}
-        tone={firstTokenTone(firstMs)}
-      />
-      <TimingPill
-        kind="duration"
-        label={t('usage.timingDuration')}
-        valueMs={durationMs}
-        tone={durationTone(durationMs)}
-      />
+    <div className="inline-flex items-stretch gap-2 text-left">
+      <span className={barClassName} aria-hidden="true" />
+      <div className="grid grid-cols-[max-content_max-content] items-baseline gap-x-2 gap-y-0.5 text-xs">
+        <span className={labelClass}>{t('usage.timingFirst')}</span>
+        {firstMs > 0
+          ? <span className={cn('font-medium tabular-nums', LATENCY_TEXT_CLASSES[firstTokenSeverity(firstMs)])}>{formatLatencyMs(firstMs)}</span>
+          : <span className={emptyClass}>-</span>}
+        <span className={labelClass}>{t('usage.timingDuration')}</span>
+        {durationMs > 0
+          ? <span className={cn('font-medium tabular-nums', LATENCY_TEXT_CLASSES[duration])}>{formatLatencyMs(durationMs)}</span>
+          : <span className={emptyClass}>-</span>}
+        <span className={labelClass}>{t('usage.tableTokensPerSec')}</span>
+        {tps != null
+          ? <span className={cn('font-medium tabular-nums', LATENCY_TEXT_CLASSES[tpsSeverity(tps)])} title={`${tps.toFixed(2)} tok/s`}>{formatTokensPerSec(tps)}</span>
+          : <span className={emptyClass}>-</span>}
+      </div>
     </div>
   )
 }
@@ -1668,6 +1636,9 @@ function getInitialUsageVisibleColumns(): Record<UsageTableColumn, boolean> {
           const oldDuration = 'duration' in parsed ? Boolean(parsed.duration) : true
           defaults.timing = oldFirst || oldDuration
         }
+        // 兼容旧版独立「缓存」「tok/s」列：已并入 TOKEN / 用时，旧列开启则对应聚合列开启
+        if (parsed.cached === true) defaults.token = true
+        if (parsed.tokensPerSec === true) defaults.timing = true
         return defaults
       }
     }
@@ -2651,7 +2622,7 @@ export default function Usage() {
               <div className="grid grid-cols-1 gap-3 lg:hidden">
                 {logs.map((log: UsageLog) => {
                   const hasDetails = visibleColumns.account || visibleColumns.apiKey || visibleColumns.clientIp || visibleColumns.endpoint || visibleColumns.userAgent
-                  const hasMetrics = visibleColumns.token || visibleColumns.cached || visibleColumns.timing || visibleColumns.tokensPerSec || visibleColumns.cost
+                  const hasMetrics = visibleColumns.token || visibleColumns.timing || visibleColumns.cost
                   return (
                     <div
                       key={log.id}
@@ -2784,24 +2755,8 @@ export default function Usage() {
                           {visibleColumns.token && (
                             <div className="rounded-lg border border-border/70 bg-card/60 px-2.5 py-2">
                               <div className="text-[11px] font-semibold text-muted-foreground">{t('usage.tableToken')}</div>
-                              <div className="mt-1 font-mono tabular-nums">
-                                {log.status_code < 400 && (log.input_tokens > 0 || log.output_tokens > 0) ? (
-                                  <>
-                                    <UsageInputTokenCount log={log} />
-                                    <span className="mx-0.5 text-border">/</span>
-                                    <span className="text-emerald-500">↑{formatTokens(log.output_tokens, true)}</span>
-                                  </>
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                          {visibleColumns.cached && (
-                            <div className="rounded-lg border border-border/70 bg-card/60 px-2.5 py-2">
-                              <div className="text-[11px] font-semibold text-muted-foreground">{t('usage.tableCached')}</div>
-                              <div className="mt-1.5">
-                                <UsageCacheBadges log={log} align="start" />
+                              <div className="mt-1">
+                                <UsageTokenCell log={log} />
                               </div>
                             </div>
                           )}
@@ -2815,19 +2770,6 @@ export default function Usage() {
                               </div>
                               <div className="mt-1.5">
                                 <TimingCell log={log} />
-                              </div>
-                            </div>
-                          )}
-                          {visibleColumns.tokensPerSec && (
-                            <div className="rounded-lg border border-border/70 bg-card/60 px-2.5 py-2">
-                              <div
-                                className="text-[11px] font-semibold text-muted-foreground"
-                                title={t('usage.tableTokensPerSecHint')}
-                              >
-                                {t('usage.tableTokensPerSec')}
-                              </div>
-                              <div className="mt-1">
-                                <TokensPerSecCell log={log} />
                               </div>
                             </div>
                           )}
@@ -2861,26 +2803,15 @@ export default function Usage() {
                       {visibleColumns.userAgent && <TableHead className={usageTableHeadClass}>{t('usage.tableUserAgent')}</TableHead>}
                       {visibleColumns.endpoint && <TableHead className={usageTableHeadClass}>{t('usage.tableEndpoint')}</TableHead>}
                       {visibleColumns.type && <TableHead className={usageTableHeadClass}>{t('usage.tableType')}</TableHead>}
-                      {visibleColumns.token && <TableHead className={`${usageTableHeadClass} text-right`}>{t('usage.tableToken')}</TableHead>}
-                      {visibleColumns.cached && <TableHead className={`${usageTableHeadClass} text-right`}>{t('usage.tableCached')}</TableHead>}
+                      {visibleColumns.token && <TableHead className={usageTableHeadClass}>{t('usage.tableToken')}</TableHead>}
                       {visibleColumns.wsAcquire && <TableHead className={`${usageTableHeadClass} text-right`}><span title={t('usage.wsAcquireTooltip')} className="cursor-help underline decoration-dotted underline-offset-2">{t('usage.tableWsAcquire')}</span></TableHead>}
                       {visibleColumns.timing && (
-                        <TableHead className={`${usageTableHeadClass} text-right`}>
+                        <TableHead className={usageTableHeadClass}>
                           <span
                             title={t('usage.tableTimingHint')}
                             className="cursor-help underline decoration-dotted underline-offset-2"
                           >
                             {t('usage.tableTiming')}
-                          </span>
-                        </TableHead>
-                      )}
-                      {visibleColumns.tokensPerSec && (
-                        <TableHead className={`${usageTableHeadClass} text-right`}>
-                          <span
-                            title={t('usage.tableTokensPerSecHint')}
-                            className="cursor-help underline decoration-dotted underline-offset-2"
-                          >
-                            {t('usage.tableTokensPerSec')}
                           </span>
                         </TableHead>
                       )}
@@ -3014,25 +2945,8 @@ export default function Usage() {
                             <InternalRequestBadge log={log} />
                           </div>
                         </TableCell>}
-                        {visibleColumns.token && <TableCell className="text-right">
-                          {log.status_code < 400 && (log.input_tokens > 0 || log.output_tokens > 0) ? (
-                            <div className={`${usageTableMonoClass} whitespace-nowrap leading-relaxed`}>
-                              <UsageInputTokenCount log={log} />
-                              <span className="mx-1 text-border">|</span>
-                              <span className="text-emerald-500">↑{formatTokens(log.output_tokens, true)}</span>
-                              {log.reasoning_tokens > 0 && (
-                                <>
-                                  <span className="mx-1 text-border">|</span>
-                                  <span className="text-amber-500 inline-flex items-center gap-0.5"><Brain className="size-3.5 inline" />{formatTokens(log.reasoning_tokens, true)}</span>
-                                </>
-                              )}
-                            </div>
-                          ) : (
-                            <span className={`${usageTableMonoClass} text-muted-foreground/50`}>-</span>
-                          )}
-                        </TableCell>}
-                        {visibleColumns.cached && <TableCell className="text-right">
-                          <UsageCacheBadges log={log} />
+                        {visibleColumns.token && <TableCell>
+                          <UsageTokenCell log={log} />
                         </TableCell>}
                         {visibleColumns.wsAcquire && <TableCell className="text-right">
                           {(log.ws_acquire_ms ?? 0) > 0 ? (
@@ -3045,13 +2959,8 @@ export default function Usage() {
                           ) : <span className={`${usageTableMonoClass} text-muted-foreground/50`}>-</span>}
                         </TableCell>}
                         {visibleColumns.timing && (
-                          <TableCell className="text-right">
+                          <TableCell>
                             <TimingCell log={log} />
-                          </TableCell>
-                        )}
-                        {visibleColumns.tokensPerSec && (
-                          <TableCell className="text-right">
-                            <TokensPerSecCell log={log} />
                           </TableCell>
                         )}
                         {visibleColumns.cost && <TableCell className="text-right">
