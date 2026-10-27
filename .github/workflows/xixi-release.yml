@@ -1,0 +1,178 @@
+# xixi-main 分支的正式发布，规则见 docs/xixi-branch.md。
+# 手动触发（Actions → xixi Release → Run workflow，分支选 xixi-main）：
+#   完整 CI → 计算版本 v<上游基线>-xixi.<N> → 构建镜像 + 多平台二进制 → 最后才打标签并创建 Release，
+#   任何一步失败都不会占用版本号。
+# 标签由 GITHUB_TOKEN 创建，GitHub 不会因此再触发 docker-image.yml / release.yml（上游的 v* 标签流程），
+# 所以不要手动推送 v*-xixi.* 标签。
+name: xixi Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: xixi-release
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Only release from xixi-main
+        if: github.ref != 'refs/heads/xixi-main'
+        run: |
+          echo "xixi Release 只能在 xixi-main 分支上运行（当前 ${GITHUB_REF}）" >&2
+          exit 1
+
+  ci:
+    needs: guard
+    uses: ./.github/workflows/xixi-ci.yml
+
+  version:
+    needs: ci
+    runs-on: ubuntu-latest
+    outputs:
+      base: ${{ steps.version.outputs.base }}
+      release: ${{ steps.version.outputs.release }}
+      release_plain: ${{ steps.version.outputs.release_plain }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Compute release version
+        id: version
+        run: bash .github/scripts/xixi-version.sh
+
+      - name: Ensure tag is unused
+        env:
+          RELEASE: ${{ steps.version.outputs.release }}
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/${RELEASE}" >/dev/null; then
+            echo "标签 ${RELEASE} 已存在" >&2
+            exit 1
+          fi
+
+  image:
+    needs: version
+    uses: ./.github/workflows/xixi-docker.yml
+    with:
+      build_version: ${{ needs.version.outputs.release }}
+      tags: |
+        ${{ needs.version.outputs.release_plain }}
+        xixi
+
+  assets:
+    needs: version
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.release }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          VITE_APP_VERSION: ${{ needs.version.outputs.release }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="${VERSION#v}"
+          mkdir -p dist build
+
+          build_target() {
+            local goos="$1"
+            local goarch="$2"
+            local archive_base="codex2api_${version}_${goos}_${goarch}"
+            local workdir="build/${goos}_${goarch}"
+            local binary_name="codex2api"
+
+            rm -rf "$workdir"
+            mkdir -p "$workdir"
+
+            if [[ "$goos" == "windows" ]]; then
+              binary_name="codex2api.exe"
+            fi
+
+            CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" go build -trimpath -ldflags="-s -w -X github.com/codex2api/internal/version.Version=${VERSION}" -o "$workdir/$binary_name" .
+
+            cp .env.example "$workdir/.env.example"
+            cp README.md "$workdir/README.md"
+
+            if [[ "$goos" == "windows" ]]; then
+              (
+                cd "$workdir"
+                zip -r "../../dist/${archive_base}.zip" .
+              )
+            else
+              tar -C "$workdir" -czf "dist/${archive_base}.tar.gz" .
+            fi
+          }
+
+          build_target linux amd64
+          build_target linux arm64
+          build_target darwin amd64
+          build_target darwin arm64
+          build_target windows amd64
+
+          (
+            cd dist
+            sha256sum * > SHA256SUMS.txt
+          )
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: xixi-release-assets
+          path: dist/
+          retention-days: 3
+
+  publish:
+    needs: [version, image, assets]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@v4
+        with:
+          name: xixi-release-assets
+          path: dist
+
+      - name: Create tag and GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.version.outputs.release }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ needs.version.outputs.release }}
+          generate_release_notes: true
+          make_latest: true
+          body: |
+            基于上游 `${{ needs.version.outputs.base }}` 的 xixi-main 发布。
+
+            镜像：`ghcr.io/${{ github.repository }}:${{ needs.version.outputs.release_plain }}`（浮动标签 `:xixi` 指向最新正式版）
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/SHA256SUMS.txt

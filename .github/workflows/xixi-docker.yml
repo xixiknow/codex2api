@@ -1,0 +1,87 @@
+# xixi-main 分支的镜像构建（可复用），由 xixi-ci.yml（edge）和 xixi-release.yml（正式版）调用。
+# 只推送 xixi 专属标签，从不覆盖 latest / 纯 X.Y.Z 等上游风格标签。
+name: xixi Docker Image
+
+on:
+  workflow_call:
+    inputs:
+      build_version:
+        description: 'Version injected into the binary and admin UI, e.g. v3.1.1-xixi.1'
+        required: true
+        type: string
+      tags:
+        description: 'Newline-separated image tags (without registry/name)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Resolve image tags
+        id: tags
+        env:
+          BUILD_VERSION: ${{ inputs.build_version }}
+          RAW_TAGS: ${{ inputs.tags }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$BUILD_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-xixi\.[0-9]+(-edge\.[0-9a-f]{7,40})?$ ]]; then
+            echo "Invalid BUILD_VERSION: $BUILD_VERSION" >&2
+            exit 1
+          fi
+          image="${REGISTRY}/${REPOSITORY,,}"
+          {
+            echo 'list<<EOF'
+            while IFS= read -r tag; do
+              tag="$(echo "$tag" | xargs)"
+              [[ -z "$tag" ]] && continue
+              if ! [[ "$tag" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]] || [[ "$tag" == latest ]]; then
+                echo "Invalid image tag: $tag" >&2
+                exit 1
+              fi
+              echo "${image}:${tag}"
+            done <<< "$RAW_TAGS"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.tags.outputs.list }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ inputs.build_version }}
+          build-args: |
+            BUILD_VERSION=${{ inputs.build_version }}
+          cache-from: type=gha,scope=xixi
+          cache-to: type=gha,mode=max,scope=xixi
+          provenance: false

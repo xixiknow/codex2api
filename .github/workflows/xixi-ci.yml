@@ -1,0 +1,194 @@
+# xixi-main 分支的 CI，规则见 docs/xixi-branch.md。
+# 检查项与 pr-check.yml 保持一致（PR 仍由 pr-check.yml 覆盖，这里不重复触发 pull_request）；
+# push 到 xixi-main 且全部通过后，额外发布一个 edge 镜像。
+# 同时作为可复用工作流被 xixi-release.yml 调用，保证正式发布前先跑完整 CI。
+name: xixi CI
+
+on:
+  push:
+    branches:
+      - xixi-main
+    paths-ignore:
+      - 'docs/**'
+      - 'README.md'
+      - 'CHANGELOG.md'
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  # 被 release 调用时沿用调用方的 run，避免与 push 触发的 CI 互相取消
+  group: xixi-ci-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Test frontend
+        working-directory: frontend
+        run: npm test
+
+      - name: Typecheck frontend
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Install Chromium for SVG export regression tests
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Test SVG export in the browser
+        working-directory: frontend
+        run: npm run test:svg
+
+      - name: Test intelligence checks in the browser
+        working-directory: frontend
+        run: npm run test:intelligence
+
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          VITE_APP_VERSION: ${{ github.ref_name }}
+        run: npm run build
+
+  golangci-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Create frontend dist placeholder
+        run: mkdir -p frontend/dist && touch frontend/dist/placeholder
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.9
+          args: --enable-only=govet --timeout=10m ./...
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Create frontend dist placeholder
+        run: mkdir -p frontend/dist && touch frontend/dist/placeholder
+
+      - name: Run Go tests
+        run: go test -count=1 -timeout 8m ./...
+
+  postgres-compatibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: codex2api_test
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: codex2api_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U codex2api_test -d codex2api_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Test PostgreSQL compatibility and pending-account transactions
+        env:
+          CODEX2API_TEST_POSTGRES_DSN: postgres://codex2api_test:test-only@localhost:5432/codex2api_test?sslmode=disable
+        run: go test -race -count=1 ./database -run '^(TestPostgresTraceAndCapabilities|TestIntelligenceCheckPostgres|TestPendingAccountTransaction)$'
+
+  test-race:
+    name: test-race (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: proxy-a-g
+          - name: proxy-h-z
+          - name: admin
+          - name: database
+          - name: promptfilter
+          - name: rest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Create frontend dist placeholder
+        run: mkdir -p frontend/dist && touch frontend/dist/placeholder
+
+      - name: Run Go tests with race detector
+        run: |
+          set -euo pipefail
+          args="$(bash .github/scripts/go-race-packages.sh '${{ matrix.name }}')"
+          # shellcheck disable=SC2086
+          go test -race -count=1 -timeout 12m $args
+
+  edge-version:
+    # 仅 push 到 xixi-main 时发布 edge 镜像；被 release 调用时 event_name 为 workflow_dispatch，自动跳过
+    if: github.event_name == 'push' && github.ref == 'refs/heads/xixi-main'
+    needs: [frontend, golangci-lint, test, postgres-compatibility, test-race]
+    runs-on: ubuntu-latest
+    outputs:
+      edge: ${{ steps.version.outputs.edge }}
+      edge_plain: ${{ steps.version.outputs.edge_plain }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Compute edge version
+        id: version
+        run: bash .github/scripts/xixi-version.sh
+
+  edge-image:
+    needs: edge-version
+    uses: ./.github/workflows/xixi-docker.yml
+    with:
+      build_version: ${{ needs.edge-version.outputs.edge }}
+      tags: |
+        ${{ needs.edge-version.outputs.edge_plain }}
+        xixi-edge
