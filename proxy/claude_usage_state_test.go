@@ -406,3 +406,85 @@ func TestHandleClaudeModelBillingRejection_DropsModelFromWhitelist(t *testing.T)
 		t.Fatal("scheduler eligibility must reflect the pruned whitelist")
 	}
 }
+
+// 已处于 5h 冷却的账号再收到一个无窗口信号的通用 429,冷却不得被短退避缩短。
+func TestSyncClaudeUsageState_GenericRateLimitDoesNotShortenFiveHourCooldown(t *testing.T) {
+	store := newSyncTestStore()
+	defer store.Stop()
+	acc := &auth.Account{UpstreamType: auth.UpstreamClaude}
+	reset5h := time.Now().Add(3 * time.Hour)
+	SyncClaudeUsageState(store, acc, respWith(http.StatusTooManyRequests, map[string]string{
+		"anthropic-ratelimit-unified-status":               "rejected",
+		"anthropic-ratelimit-unified-representative-claim": "five_hour",
+		"anthropic-ratelimit-unified-5h-reset":             strconv.FormatInt(reset5h.Unix(), 10),
+	}))
+	_, before := acc.GetCooldownSnapshot()
+	if time.Until(before) < 2*time.Hour {
+		t.Fatalf("5h 耗尽冷却过短: %v", time.Until(before))
+	}
+
+	SyncClaudeUsageState(store, acc, respWith(http.StatusTooManyRequests, map[string]string{"Retry-After": "30"}))
+	_, after := acc.GetCooldownSnapshot()
+	if after.Before(before) {
+		t.Fatalf("通用 429 缩短了 5h 冷却: before=%v after=%v", before, after)
+	}
+}
+
+// representative-claim 的大小写/分隔符变体都应识别为 5h 耗尽。
+func TestSyncClaudeUsageState_ClaimVariantsMarkFiveHour(t *testing.T) {
+	for _, claim := range []string{"five-hour", "FIVE_HOUR", "Five Hour"} {
+		store := newSyncTestStore()
+		acc := &auth.Account{UpstreamType: auth.UpstreamClaude}
+		SyncClaudeUsageState(store, acc, respWith(http.StatusTooManyRequests, map[string]string{
+			"anthropic-ratelimit-unified-status":               "rejected",
+			"anthropic-ratelimit-unified-representative-claim": claim,
+			"anthropic-ratelimit-unified-5h-reset":             strconv.FormatInt(time.Now().Add(2*time.Hour).Unix(), 10),
+		}))
+		if pct, ok := acc.GetUsagePercent5h(); !ok || pct < 100 {
+			t.Fatalf("claim %q: 5h pct=%v ok=%v, want 100", claim, pct, ok)
+		}
+		store.Stop()
+	}
+}
+
+// 利用率停在 0.99x 的拒绝同样是 5h 耗尽,不能退化为通用短退避。
+func TestSyncClaudeUsageState_NearFullUtilizationMarksFiveHour(t *testing.T) {
+	store := newSyncTestStore()
+	defer store.Stop()
+	acc := &auth.Account{UpstreamType: auth.UpstreamClaude}
+	reset5h := time.Now().Add(2 * time.Hour)
+	SyncClaudeUsageState(store, acc, respWith(http.StatusTooManyRequests, map[string]string{
+		"anthropic-ratelimit-unified-status":         "rejected",
+		"anthropic-ratelimit-unified-5h-utilization": "0.997",
+		"anthropic-ratelimit-unified-5h-reset":       strconv.FormatInt(reset5h.Unix(), 10),
+	}))
+	if _, until := acc.GetCooldownSnapshot(); time.Until(until) < time.Hour {
+		t.Fatalf("near-full 5h rejection cooldown too short: %v", time.Until(until))
+	}
+}
+
+// 耗尽前开始的长流在结束时用旧响应头同步,不得覆盖期间写入的 5h=100% 快照。
+func TestSyncClaudeUsageStateAt_StaleStreamHeadersDoNotClearFiveHourLimit(t *testing.T) {
+	store := newSyncTestStore()
+	defer store.Stop()
+	acc := &auth.Account{UpstreamType: auth.UpstreamClaude}
+	streamHeadersAt := time.Now()
+	reset5h := time.Now().Add(2 * time.Hour)
+	staleResp := respWith(http.StatusOK, map[string]string{
+		"anthropic-ratelimit-unified-status":         "allowed",
+		"anthropic-ratelimit-unified-5h-utilization": "0.6",
+		"anthropic-ratelimit-unified-5h-reset":       strconv.FormatInt(reset5h.Unix(), 10),
+	})
+
+	time.Sleep(2 * time.Millisecond)
+	SyncClaudeUsageState(store, acc, respWith(http.StatusTooManyRequests, map[string]string{
+		"anthropic-ratelimit-unified-status":               "rejected",
+		"anthropic-ratelimit-unified-representative-claim": "five_hour",
+		"anthropic-ratelimit-unified-5h-reset":             strconv.FormatInt(reset5h.Unix(), 10),
+	}))
+
+	SyncClaudeUsageStateAt(store, acc, staleResp, streamHeadersAt)
+	if pct, ok := acc.GetUsagePercent5h(); !ok || pct < 100 {
+		t.Fatalf("stale stream headers overwrote 5h snapshot: pct=%v ok=%v", pct, ok)
+	}
+}

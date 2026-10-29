@@ -5000,6 +5000,34 @@ func (s *Store) fastSchedulerUpdate(acc *Account) {
 	s.notifySchedulerAccountAvailability(acc, true)
 }
 
+// fastSchedulerRecoverySweepInterval 是索引回插巡检的周期。
+const fastSchedulerRecoverySweepInterval = time.Second
+
+// sweepFastSchedulerRecovered 把冷却/限流窗口纯靠时间到期而恢复的账号回插全局索引。
+// 这类恢复不产生任何事件，没有巡检时索引引擎只能靠全局限速的 miss 兜底扫描
+// 偶尔捡回，表现为主账号出问题后新请求迟迟换不到健康账号。回插后唤醒排队请求。
+func (s *Store) sweepFastSchedulerRecovered() int {
+	if s == nil {
+		return 0
+	}
+	scheduler := s.getFastScheduler()
+	if scheduler == nil {
+		return 0
+	}
+	recovered := 0
+	for _, acc := range scheduler.MissingAccounts(s.accountSnapshotAccounts()) {
+		if accountDispatchBlocked(acc) || !acc.IsAvailable() {
+			continue
+		}
+		scheduler.Update(acc)
+		if scheduler.Contains(acc.DBID) {
+			s.notifySchedulerAccountAvailability(acc, true)
+			recovered++
+		}
+	}
+	return recovered
+}
+
 // RefreshUsageFrameScheduler applies an in-memory usage snapshot to the fast
 // scheduler and wakes queued dispatchers without touching the database. The
 // connection-level WS frame path updates the snapshot on the read pump, so the
@@ -6791,6 +6819,9 @@ func (s *Store) StartBackgroundRefresh() {
 		expiredCleanupTicker := time.NewTicker(15 * time.Minute)
 		// 添加定时重建 FastScheduler 以优化性能
 		rebuildSchedulerTicker := time.NewTicker(10 * time.Minute)
+		// 冷却到期的账号不产生事件，按秒巡检回插索引。
+		recoverySweepTicker := time.NewTicker(fastSchedulerRecoverySweepInterval)
+		defer recoverySweepTicker.Stop()
 		// Grok 配额余量快照按分钟批量落库(逐请求都在变,不逐请求写库)。
 		grokRateLimitPersistTicker := time.NewTicker(time.Minute)
 		// 到点即探定时器：始终武装到「最近的限流冷却/窗口重置边界」，倒计时归零即探针刷新。
@@ -6867,6 +6898,10 @@ func (s *Store) StartBackgroundRefresh() {
 				// 定期重建调度器以优化内存和性能
 				if s.FastSchedulerEnabled() {
 					s.rebuildFastScheduler()
+				}
+			case <-recoverySweepTicker.C:
+				if s.FastSchedulerEnabled() {
+					s.sweepFastSchedulerRecovered()
 				}
 			case <-grokRateLimitPersistTicker.C:
 				s.flushGrokRateLimitSnapshots()
@@ -11951,6 +11986,7 @@ func (s *Store) TriggerRecoveryProbeAsync() {
 	if !s.startDBBackgroundTask(func(ctx context.Context) {
 		defer s.recoveryProbeBatch.Store(false)
 		s.parallelRecoveryProbe(ctx)
+		s.recoverClaudeUnauthorizedAccounts(ctx)
 	}) {
 		s.recoveryProbeBatch.Store(false)
 	}

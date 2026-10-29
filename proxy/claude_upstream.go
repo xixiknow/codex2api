@@ -1173,8 +1173,18 @@ func claudeRatelimitHeaderTime(v string) time.Time {
 // 持久化调用与 SyncCodexUsageState 同构:persist 在 ApplyUsageObservation 闭包内,
 // MarkResponsesPremium5hRateLimited 自带观察序,必须留在闭包外(usageSyncMu 不可重入)。
 func SyncClaudeUsageState(store *auth.Store, account *auth.Account, resp *http.Response) {
+	SyncClaudeUsageStateAt(store, account, resp, time.Now())
+}
+
+// SyncClaudeUsageStateAt 与 SyncClaudeUsageState 相同,但以 observedAt 作为观测时刻。
+// 流式响应的限流头在流开始时就已确定,流结束后再同步时应传入拿到响应头的时刻:
+// 否则耗尽前开始的长流会用旧头覆盖期间写入的 5h=100% 快照,让已耗尽账号提前回池。
+func SyncClaudeUsageStateAt(store *auth.Store, account *auth.Account, resp *http.Response, observedAt time.Time) {
 	if account == nil || resp == nil {
 		return
+	}
+	if observedAt.IsZero() {
+		observedAt = time.Now()
 	}
 	h := resp.Header
 	if h == nil {
@@ -1188,7 +1198,6 @@ func SyncClaudeUsageState(store *auth.Store, account *auth.Account, resp *http.R
 	// valid observation and must produce a visible 0% model-scoped bar.
 	pctFable, okFable := claudeRatelimitHeaderPct(h.Get("anthropic-ratelimit-unified-7d_oi-utilization"))
 	resetFable := claudeRatelimitHeaderTime(h.Get("anthropic-ratelimit-unified-7d_oi-reset"))
-	observedAt := time.Now()
 	if !ok5h && !ok7d {
 		// A valid native response without quota metadata is still evidence that
 		// the token was observed. Record freshness without inventing a quota
@@ -1236,14 +1245,14 @@ func SyncClaudeUsageState(store *auth.Store, account *auth.Account, resp *http.R
 	rejected := resp.StatusCode == http.StatusTooManyRequests ||
 		strings.EqualFold(strings.TrimSpace(h.Get("anthropic-ratelimit-unified-status")), "rejected")
 	if rejected && store != nil {
-		claim := strings.ToLower(strings.TrimSpace(h.Get("anthropic-ratelimit-unified-representative-claim")))
-		fiveHourExhausted := (ok5h && pct5h >= 100) || claim == "five_hour" || claim == "five-hour" || claim == "5h"
-		sevenDayExhausted := (ok7d && pct7d >= 100) || claim == "seven_day" || claim == "seven-day" || claim == "7d"
+		claim := normalizeClaudeRatelimitClaim(h.Get("anthropic-ratelimit-unified-representative-claim"))
+		fiveHourExhausted := (ok5h && pct5h >= claudeWindowExhaustedPct) || claim == "fivehour" || claim == "5h"
+		sevenDayExhausted := (ok7d && pct7d >= claudeWindowExhaustedPct) || claim == "sevenday" || claim == "7d"
 		switch {
 		case sevenDayExhausted:
 			// 周窗口耗尽:记到 7d 窗口(冷却到 7d 重置),不动 5h。上面已按 7d-utilization
 			// 持久化;若上游只给了 representative-claim 而无 utilization,则补写 7d=100。
-			if !(ok7d && pct7d >= 100) {
+			if !(ok7d && pct7d >= claudeWindowExhaustedPct) {
 				r7 := reset7d
 				if r7.IsZero() {
 					r7 = claudeRatelimitHeaderTime(h.Get("anthropic-ratelimit-unified-reset"))
@@ -1267,9 +1276,32 @@ func SyncClaudeUsageState(store *auth.Store, account *auth.Account, resp *http.R
 		default:
 			// 无任何窗口耗尽信号(通用/边缘/IP 限流,如 rate_limit_error,常无 unified 头)→
 			// 只做短退避,绝不标 5h=100%。优先用 Retry-After,否则给保守默认。
-			store.MarkCooldown(account, claudeGenericRateLimitBackoff(h), "rate_limited")
+			// 已有更长的冷却(例如并发请求刚写入的 5h/7d 冷却)时不得被短退避覆盖缩短。
+			backoff := claudeGenericRateLimitBackoff(h)
+			if !claudeActiveCooldownOutlasts(account, backoff) {
+				store.MarkCooldown(account, backoff, "rate_limited")
+			}
 		}
 	}
+}
+
+// claudeWindowExhaustedPct 是判定窗口耗尽的利用率阈值。上游被拒时利用率常停在
+// 0.99x 而非 1.0,按 100 严格匹配会把真实的窗口耗尽误判成通用短限流。
+const claudeWindowExhaustedPct = 99.5
+
+// normalizeClaudeRatelimitClaim 归一化 representative-claim:小写并去掉 _ / - / 空格,
+// 使 five_hour / five-hour / FIVE_HOUR 等写法都映射为 fivehour。
+func normalizeClaudeRatelimitClaim(v string) string {
+	return strings.NewReplacer("_", "", "-", "", " ", "").Replace(strings.ToLower(strings.TrimSpace(v)))
+}
+
+// claudeActiveCooldownOutlasts 报告账号当前生效的冷却是否比 d 更晚结束。
+func claudeActiveCooldownOutlasts(account *auth.Account, d time.Duration) bool {
+	if account == nil || !account.HasActiveCooldown() {
+		return false
+	}
+	_, until := account.GetCooldownSnapshot()
+	return until.After(time.Now().Add(d))
 }
 
 // claudeCreditsRequiredCooldown 是「模型需购买 usage credits」被拒时对该**模型**的冷却时长。

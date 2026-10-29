@@ -13,7 +13,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -205,9 +207,100 @@ func (s *Store) refreshClaudeAccount(ctx context.Context, acc *Account, forceRef
 	acc.recomputeSchedulerLocked(s.maxConcurrency.Load())
 	acc.mu.Unlock()
 
+	if !cooldownActive {
+		// 上次 401 置位的 Disabled 只在内存里,冷却期过后换票成功即可解除,
+		// 否则账号要等手动测试或进程重启才会回池。
+		atomic.StoreInt32(&acc.Disabled, 0)
+	}
 	s.fastSchedulerUpdate(acc)
 	if !cooldownActive && s.db != nil {
 		_ = s.db.ClearError(ctx, dbID)
 	}
 	return nil
+}
+
+// RefreshClaudeAccountAfterUnauthorized 是请求路径上 Claude OAuth 401 的恢复通道:
+// 强制换票,成功后清除 401 留下的 Disabled/Banned/unauthorized 冷却并回插调度索引。
+// Setup Token / API Key 账号没有可刷新的凭据,直接返回错误交由调用方换号。
+func (s *Store) RefreshClaudeAccountAfterUnauthorized(ctx context.Context, acc *Account) error {
+	if s == nil || acc == nil || !acc.IsClaudeOAuth() {
+		return fmt.Errorf("account is not a Claude OAuth account")
+	}
+	acc.mu.RLock()
+	noRefresh := acc.isClaudeSetupTokenLocked() || acc.isClaudeAPIKeyLocked()
+	acc.mu.RUnlock()
+	if noRefresh {
+		return fmt.Errorf("claude 账号无可刷新的凭据")
+	}
+	if err := s.refreshClaudeAccount(ctx, acc, true); err != nil {
+		return err
+	}
+	atomic.StoreInt32(&acc.Disabled, 0)
+	acc.mu.Lock()
+	clearedUnauthorized := false
+	if acc.Status == StatusCooldown && acc.CooldownReason == "unauthorized" {
+		acc.Status = StatusReady
+		acc.CooldownUtil = time.Time{}
+		acc.CooldownReason = ""
+		acc.ErrorMsg = ""
+		clearedUnauthorized = true
+	}
+	if acc.HealthTier == HealthTierBanned && acc.Status != StatusCooldown && acc.Status != StatusError {
+		acc.HealthTier = HealthTierWarm
+	}
+	acc.recomputeSchedulerLocked(s.maxConcurrency.Load())
+	acc.mu.Unlock()
+	s.fastSchedulerUpdate(acc)
+	if clearedUnauthorized {
+		s.persistAccountCooldownState(acc, true, true)
+	}
+	return nil
+}
+
+// needsClaudeUnauthorizedRecovery 判断 Claude OAuth 账号是否卡在 401 留下的隔离态:
+// Banned 层与内存 Disabled 在冷却到期后不会自行解除,而通用恢复探测与后台刷新都
+// 跳过 Banned 的 Claude 账号,不处理就只能靠手动测试或重启回池。
+func (a *Account) needsClaudeUnauthorizedRecovery(now time.Time, minInterval time.Duration) bool {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	if !a.isClaudeOAuthLocked() || a.isClaudeSetupTokenLocked() || a.isClaudeAPIKeyLocked() {
+		return false
+	}
+	if a.recoveryProbeInFlight || strings.TrimSpace(a.RefreshToken) == "" || a.Status == StatusError {
+		return false
+	}
+	if a.healthTierLocked() != HealthTierBanned && atomic.LoadInt32(&a.Disabled) == 0 {
+		return false
+	}
+	if a.Status == StatusCooldown && now.Before(a.CooldownUtil) {
+		return false
+	}
+	return a.LastRecoveryProbeAt.IsZero() || now.Sub(a.LastRecoveryProbeAt) >= minInterval
+}
+
+// recoverClaudeUnauthorizedAccounts 对 401 冷却已到期的 Claude OAuth 账号做一次换票:
+// 成功即解除隔离回池,失败保持隔离(下次巡检按恢复探测间隔重试)。只换票不发付费请求。
+func (s *Store) recoverClaudeUnauthorizedAccounts(ctx context.Context) {
+	if s == nil {
+		return
+	}
+	now := time.Now()
+	interval := s.GetRecoveryProbeInterval()
+	for _, acc := range s.accountSnapshotAccounts() {
+		if ctx.Err() != nil {
+			return
+		}
+		if !acc.needsClaudeUnauthorizedRecovery(now, interval) || !acc.TryBeginRecoveryProbe() {
+			continue
+		}
+		refreshCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		err := s.RefreshClaudeAccountAfterUnauthorized(refreshCtx, acc)
+		cancel()
+		acc.FinishRecoveryProbe()
+		if err != nil {
+			log.Printf("[账号 %d] Claude 401 隔离自愈换票失败: %v", acc.DBID, err)
+			continue
+		}
+		log.Printf("[账号 %d] Claude 401 隔离自愈:换票成功,已恢复调度", acc.DBID)
+	}
 }

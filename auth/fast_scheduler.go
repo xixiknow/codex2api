@@ -412,6 +412,37 @@ func (s *FastScheduler) appendLocked(acc *Account, tier AccountHealthTier, dispa
 	}
 }
 
+// Contains 报告账号当前是否在索引中。
+func (s *FastScheduler) Contains(dbID int64) bool {
+	if s == nil || dbID == 0 {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, ok := s.positions[dbID]
+	return ok
+}
+
+// MissingAccounts 返回给定快照中当前不在索引里的账号。锁内只做 map 查找，
+// 可用性判定留给调用方在锁外完成。
+func (s *FastScheduler) MissingAccounts(accounts []*Account) []*Account {
+	if s == nil || len(accounts) == 0 {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var missing []*Account
+	for _, acc := range accounts {
+		if acc == nil || acc.DBID == 0 {
+			continue
+		}
+		if _, ok := s.positions[acc.DBID]; !ok {
+			missing = append(missing, acc)
+		}
+	}
+	return missing
+}
+
 func (s *FastScheduler) Remove(dbID int64) {
 	if s == nil || dbID == 0 {
 		return

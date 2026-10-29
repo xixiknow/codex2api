@@ -95,6 +95,16 @@ func syncAnthropicUsageStateForAccount(store *auth.Store, account *auth.Account,
 	SyncCodexUsageState(store, account, resp)
 }
 
+// syncAnthropicUsageStateForAccountAt 用于流读完之后的同步:Claude 的限流头在拿到
+// 响应头时就已确定,以该时刻作为观测时间,避免旧头覆盖期间写入的更新状态。
+func syncAnthropicUsageStateForAccountAt(store *auth.Store, account *auth.Account, resp *http.Response, headersAt time.Time) {
+	if account != nil && account.IsClaudeOAuth() {
+		SyncClaudeUsageStateAt(store, account, resp, headersAt)
+		return
+	}
+	SyncCodexUsageState(store, account, resp)
+}
+
 // normalizeNativeFailureMessageForAccount keeps the shared native forwarder
 // compatible with Claude without leaking its historical Grok fallback text to
 // Anthropic clients. Structured upstream messages remain untouched.
@@ -164,6 +174,9 @@ func claudeHasAuthoritativeQuotaCooldown(account *auth.Account) bool {
 	// the fallback one-minute delay while handling a second body-only frame.
 	return true
 }
+
+// claudeUnauthorizedRefreshTimeout 限制请求路径上 401 换票的耗时,避免拖住换号。
+const claudeUnauthorizedRefreshTimeout = 15 * time.Second
 
 // sendAnthropicError 发送 Anthropic 格式的错误响应
 func sendAnthropicError(c *gin.Context, statusCode int, errType, message string) {
@@ -730,6 +743,7 @@ func (h *Handler) Messages(c *gin.Context) {
 	retryExclusions := newRetryAccountExclusions()
 	var wsHTTPFallback websocketHTTPFallbackState
 	antigravityRefreshRetried := map[int64]bool{}
+	claudeRefreshRetried := map[int64]bool{}
 
 	var lastUpstreamCancel context.CancelFunc
 	defer func() {
@@ -1019,7 +1033,8 @@ func (h *Handler) Messages(c *gin.Context) {
 				return executeAnthropicCodexRequest(upstreamCtx, account, codexBody, canonicalBody, upstreamSessionID, proxyURL, apiKey, deviceCfg, downstreamHeaders, useWebsocket)
 			})
 		}
-		durationMs := int(time.Since(start).Milliseconds())
+		responseHeadersAt := time.Now()
+		durationMs := int(responseHeadersAt.Sub(start).Milliseconds())
 
 		if reqErr != nil {
 			if apiKeyModelRequestError(reqErr) != nil {
@@ -1175,6 +1190,21 @@ func (h *Handler) Messages(c *gin.Context) {
 					log.Printf("Antigravity OAuth refresh failed after upstream 401 (account=%d, endpoint=/v1/messages): %v", account.ID(), refreshErr)
 				}
 			}
+			// Claude OAuth 的 401(如 access token 被 revoked)先强制换票同号重试一次;
+			// 换票失败再走下面的账号级 401 处理并换号。
+			if resp.StatusCode == http.StatusUnauthorized && account.IsClaudeOAuth() && !account.IsClaudeAPIKey() && !isMissingScopeUnauthorized(errBody) && !claudeRefreshRetried[account.ID()] {
+				claudeRefreshRetried[account.ID()] = true
+				refreshCtx, cancelRefresh := context.WithTimeout(c.Request.Context(), claudeUnauthorizedRefreshTimeout)
+				refreshErr := h.store.RefreshClaudeAccountAfterUnauthorized(refreshCtx, account)
+				cancelRefresh()
+				if refreshErr == nil {
+					h.store.Release(account)
+					h.store.UnbindSessionAffinity(affinityKey, account.ID())
+					log.Printf("Claude OAuth token refreshed after upstream 401 (account=%d, endpoint=/v1/messages)", account.ID())
+					continue
+				}
+				log.Printf("Claude OAuth refresh failed after upstream 401 (account=%d, endpoint=/v1/messages): %v", account.ID(), refreshErr)
+			}
 			if kind := classifyHTTPFailure(resp.StatusCode, errBody); kind != "" && !antigravityNonPenalizingUpstreamFailure(account, resp.StatusCode, errBody) {
 				h.store.ReportRequestFailure(account, kind, time.Duration(durationMs)*time.Millisecond)
 			}
@@ -1312,7 +1342,7 @@ func (h *Handler) Messages(c *gin.Context) {
 			// The native forwarder consumes the body before returning. Synchronize
 			// Anthropic's unified quota headers now, once per attempt, so Claude
 			// usage remains fresh without adding a write before first token.
-			syncAnthropicUsageStateForAccount(h.store, account, resp)
+			syncAnthropicUsageStateForAccountAt(h.store, account, resp, responseHeadersAt)
 			promptPolicyIncidentID := ""
 			if account.IsClaudeOAuth() && outcome.logStatusCode != http.StatusOK && len(outcome.failurePayload) > 0 {
 				// Native Claude error frames can be HTTP 200, so the normal HTTP
@@ -1747,7 +1777,7 @@ func (h *Handler) Messages(c *gin.Context) {
 			log.Printf("上游流在首包前断开，重试 (attempt %s, account %d, /v1/messages): %s",
 				retryAttemptProgress(attempt, maxRetries), account.ID(), outcome.failureMessage)
 			recyclePooledClient(account, proxyURL)
-			syncAnthropicUsageStateForAccount(h.store, account, resp)
+			syncAnthropicUsageStateForAccountAt(h.store, account, resp, responseHeadersAt)
 			if isFirstTokenTimeoutOutcome(outcome) {
 				retryExclusions.MarkSoftFirstTokenTimeout(account.ID())
 			} else {
@@ -1871,7 +1901,7 @@ func (h *Handler) Messages(c *gin.Context) {
 		h.logUsageForRequest(c, logInput)
 
 		resp.Body.Close()
-		syncAnthropicUsageStateForAccount(h.store, account, resp)
+		syncAnthropicUsageStateForAccountAt(h.store, account, resp, responseHeadersAt)
 		if !outcome.penalize && outcome.logStatusCode == http.StatusOK && account.IsClaudeOAuth() {
 			NoteClaudeGatedModelSuccess(h.store, account, attemptEffectiveModel)
 		}
