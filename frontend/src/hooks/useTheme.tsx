@@ -88,16 +88,16 @@ export const COLOR_THEMES: ColorThemeDef[] = [
     group: 'light',
     recommended: true,
     previewLight: {
-      primary: 'hsl(214 84% 46%)',
-      bg: 'hsl(220 24% 96%)',
+      primary: 'hsl(233 88% 68%)',
+      bg: 'hsl(228 45% 97%)',
       surface: 'hsl(0 0% 100%)',
-      muted: 'hsl(214 22% 93%)',
+      muted: 'hsl(230 27% 95%)',
     },
     previewDark: {
-      primary: 'hsl(205 62% 54%)',
-      bg: 'hsl(222 16% 14%)',
-      surface: 'hsl(222 14% 17%)',
-      muted: 'hsl(222 11% 24%)',
+      primary: 'hsl(234 100% 75%)',
+      bg: 'hsl(222 26% 7%)',
+      surface: 'hsl(223 23% 11%)',
+      muted: 'hsl(222 20% 15%)',
     },
   }),
   def({

@@ -44,3 +44,14 @@
 
 - 共享下拉：`frontend/src/pages/Settings.tsx` ClaudeCode 卡片的时区 / 指纹模式 / 平台 / 版本策略字段。
 - 同步按钮 + 自动同步开关 + 间隔：Settings.tsx 中 Codex "客户端与指纹" 与 ClaudeCode "CLI 版本同步" 区块。
+
+## 6. 视觉语言（Atrium）
+
+默认主题「清透 / Atrium」的 token 定义在 `frontend/src/index.css` 顶部的 `@theme` 与 `.dark` 块；样板见 `design/tidepool-styleboard.html`。
+
+- **配色**：浅色优先、留白充足的冷调灰白底（`--color-background`），卡片纯白；主色为长春花蓝 `hsl(233 88% 68%)`，只用于主按钮、选中态、关键数据与图标高亮，不做大面积铺色。状态色用 `--success` / `--warning` / `--destructive`，徽标统一"浅底 + 同色字"。
+- **圆角**：卡片 `rounded-xl`（14px），按钮/输入 `rounded-lg`（10px），徽标与开关用全圆角。不要手写 `border-radius` 像素值，用 `var(--radius-*)` 或对应 Tailwind 类。
+- **阴影**：静止卡片 `shadow-sm`（几乎不可见），悬停/浮层升到 `shadow-md` / `shadow-lg`；可点击卡片悬停上移 2px，并尊重 `prefers-reduced-motion`。
+- **数字**：统计值用 `tabular-nums`，避免刷新时跳动。
+- **Logo**：默认标志由 `components/BrandMark.tsx` 渲染（站点设置里上传了 Logo 时改用图片），动画为"水滴落下 → 椭圆涟漪"，实现见 `components/TidepoolLogo.tsx`。登录页 `mode="loop"`，侧栏 `mode="hover"`（进入页面和悬停时各播放一次），其余位置 `static`；系统开启减少动态效果时一律静止。静态资源 `src/assets/logo.svg`、`public/favicon.svg` / `favicon.png` 是同一静止帧。
+- **品牌名**：界面上不写死产品名，统一读 `useBranding().siteName`（默认值 `DEFAULT_SITE_NAME`，可在系统设置中修改）。

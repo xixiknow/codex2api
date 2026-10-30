@@ -6,79 +6,87 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --font-sans: 'Inter', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Inter', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Cascadia Mono', 'Cascadia Code', Consolas, 'JetBrains Mono', 'Fira Code', 'SFMono-Regular', ui-monospace, monospace;
   --font-geist-mono: 'Cascadia Mono', 'Cascadia Code', Consolas, 'JetBrains Mono', 'Fira Code', 'SFMono-Regular', ui-monospace, monospace;
 
+  /* Tidepool "Atrium": cards 14px, controls 10px */
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.125rem;
 
-  /* Light theme (default) — slightly richer primary & softer surfaces */
-  --color-background: hsl(220 24% 96%);
-  --color-foreground: hsl(222 40% 11%);
+  --shadow-xs: 0 1px 1px rgb(20 24 40 / 0.03);
+  --shadow-sm: 0 1px 2px rgb(20 24 40 / 0.04), 0 1px 1px rgb(20 24 40 / 0.03);
+  --shadow-md: 0 8px 24px -12px rgb(30 36 70 / 0.14), 0 2px 6px -2px rgb(30 36 70 / 0.06);
+  --shadow-lg: 0 18px 44px -18px rgb(30 36 70 / 0.22), 0 4px 10px -4px rgb(30 36 70 / 0.06);
+  --shadow-xl: 0 24px 60px -20px rgb(30 36 70 / 0.28);
+
+  /* Light (default): airy off-white surfaces, periwinkle accent */
+  --color-background: hsl(228 45% 97%);
+  --color-foreground: hsl(226 25% 13%);
   --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(222 40% 11%);
+  --color-card-foreground: hsl(226 25% 13%);
   --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(222 40% 11%);
-  --color-primary: hsl(214 84% 46%);
+  --color-popover-foreground: hsl(226 25% 13%);
+  --color-primary: hsl(233 88% 68%);
   --color-primary-foreground: hsl(0 0% 100%);
-  --color-secondary: hsl(214 22% 92%);
-  --color-secondary-foreground: hsl(222 26% 26%);
-  --color-muted: hsl(214 22% 93%);
-  --color-muted-foreground: hsl(220 10% 42%);
-  --color-accent: hsl(210 48% 94%);
-  --color-accent-foreground: hsl(222 40% 11%);
-  --color-destructive: hsl(0 60% 48%);
+  --color-secondary: hsl(230 27% 95%);
+  --color-secondary-foreground: hsl(226 20% 28%);
+  --color-muted: hsl(230 27% 95%);
+  --color-muted-foreground: hsl(227 11% 46%);
+  --color-accent: hsl(233 90% 96%);
+  --color-accent-foreground: hsl(226 25% 13%);
+  --color-destructive: hsl(0 65% 52%);
   --color-destructive-foreground: hsl(0 0% 100%);
-  --color-border: hsl(214 18% 88%);
-  --color-input: hsl(214 18% 88%);
-  --color-ring: hsl(214 84% 46%);
+  --color-border: hsl(227 22% 92%);
+  --color-input: hsl(228 20% 87%);
+  --color-ring: hsl(233 88% 68%);
 }
 
 @layer base {
   :root {
     color-scheme: light;
-    --success: 152 50% 34%;
-    --success-bg: 152 50% 34% / 0.12;
-    --warning: 36 72% 40%;
-    --warning-bg: 36 72% 40% / 0.12;
-    --info: 198 62% 38%;
-    --info-bg: 198 62% 38% / 0.12;
+    --success: 155 64% 39%;
+    --success-bg: 155 64% 39% / 0.12;
+    --warning: 34 66% 46%;
+    --warning-bg: 34 66% 46% / 0.13;
+    --info: 205 63% 46%;
+    --info-bg: 205 63% 46% / 0.12;
     --sidebar-background: 0 0% 100%;
   }
 
-  /* ===== Soft neutral dark ===== */
+  /* ===== Tidepool dark ===== */
   .dark {
     color-scheme: dark;
-    --color-background: hsl(222 16% 14%);
-    --color-foreground: hsl(215 16% 82%);
-    --color-card: hsl(222 14% 17%);
-    --color-card-foreground: hsl(215 16% 82%);
-    --color-popover: hsl(222 14% 17%);
-    --color-popover-foreground: hsl(215 16% 82%);
-    --color-primary: hsl(205 62% 54%);
-    --color-primary-foreground: hsl(210 30% 98%);
-    --color-secondary: hsl(222 11% 24%);
-    --color-secondary-foreground: hsl(215 13% 76%);
-    --color-muted: hsl(222 11% 24%);
-    --color-muted-foreground: hsl(216 9% 60%);
-    --color-accent: hsl(190 18% 24%);
-    --color-accent-foreground: hsl(215 16% 82%);
-    --color-destructive: hsl(0 56% 50%);
-    --color-destructive-foreground: hsl(210 30% 98%);
-    --color-border: hsl(222 10% 28%);
-    --color-input: hsl(222 10% 28%);
-    --color-ring: hsl(205 62% 54%);
+    --color-background: hsl(222 26% 7%);
+    --color-foreground: hsl(228 20% 93%);
+    --color-card: hsl(223 23% 11%);
+    --color-card-foreground: hsl(228 20% 93%);
+    --color-popover: hsl(223 23% 11%);
+    --color-popover-foreground: hsl(228 20% 93%);
+    --color-primary: hsl(234 100% 75%);
+    --color-primary-foreground: hsl(222 26% 7%);
+    --color-secondary: hsl(222 20% 15%);
+    --color-secondary-foreground: hsl(226 16% 78%);
+    --color-muted: hsl(222 20% 15%);
+    --color-muted-foreground: hsl(225 11% 60%);
+    --color-accent: hsl(232 30% 18%);
+    --color-accent-foreground: hsl(228 20% 93%);
+    --color-destructive: hsl(0 62% 58%);
+    --color-destructive-foreground: hsl(0 0% 100%);
+    --color-border: hsl(222 21% 17%);
+    --color-input: hsl(222 19% 22%);
+    --color-ring: hsl(234 100% 75%);
 
-    --success: 153 42% 43%;
-    --success-bg: 153 42% 43% / 0.12;
-    --warning: 38 62% 47%;
-    --warning-bg: 38 62% 47% / 0.12;
-    --info: 198 52% 55%;
-    --info-bg: 198 52% 55% / 0.12;
-    --sidebar-background: 222 15% 13%;
+    --success: 155 50% 48%;
+    --success-bg: 155 50% 48% / 0.14;
+    --warning: 36 70% 55%;
+    --warning-bg: 36 70% 55% / 0.14;
+    --info: 205 60% 60%;
+    --info-bg: 205 60% 60% / 0.14;
+    --sidebar-background: 222 26% 6%;
   }
 
   /* ===== Rich Theme Style Classes ===== */
@@ -1194,6 +1202,21 @@
   body.dark {
     background: linear-gradient(180deg, var(--color-background) 0%, color-mix(in oklab, var(--color-background) 97%, black 3%) 100%);
   }
+
+  /* Tidepool default: a faint accent glow in the top-right corner. */
+  .theme-default body {
+    background:
+      radial-gradient(1200px 600px at 85% -10%, color-mix(in oklab, var(--color-primary) 9%, transparent), transparent 60%),
+      var(--color-background);
+    background-attachment: fixed;
+  }
+
+  .dark.theme-default body {
+    background:
+      radial-gradient(1200px 600px at 85% -10%, color-mix(in oklab, var(--color-primary) 12%, transparent), transparent 60%),
+      var(--color-background);
+    background-attachment: fixed;
+  }
 }
 
 /* Safe-area helpers for notched phones / home indicator */
@@ -1922,4 +1945,46 @@
   .usage-ultra-model::after {
     animation: none;
   }
+}
+
+/* ===== Tidepool animated mark (components/TidepoolLogo.tsx) ===== */
+.tp-logo { overflow: visible; --tp-dur: 2.8s; }
+.tp-logo * { transform-box: fill-box; }
+.tp-logo .tp-drop { transform-origin: 50% 100%; }
+.tp-logo .tp-ring { transform-origin: 50% 50%; }
+.tp-logo .tp-splash { opacity: 0; }
+/* still frame */
+.tp-logo .tp-r1 { transform: scale(0.5); opacity: 0.9; }
+.tp-logo .tp-r2 { transform: scale(1); opacity: 0.35; }
+.tp-logo .tp-r3 { opacity: 0; }
+/* playing */
+.tp-logo.is-playing .tp-drop { animation: tp-fall var(--tp-dur) infinite; }
+.tp-logo.is-playing .tp-ring { animation: tp-ripple var(--tp-dur) infinite cubic-bezier(0.2, 0.6, 0.3, 1); }
+.tp-logo.is-playing .tp-r2 { animation-delay: calc(var(--tp-dur) * 0.14); }
+.tp-logo.is-playing .tp-r3 { animation-delay: calc(var(--tp-dur) * 0.28); }
+.tp-logo.is-playing .tp-splash { animation: tp-splash var(--tp-dur) infinite; }
+.tp-logo.play-once.is-playing * { animation-iteration-count: 1; }
+
+@keyframes tp-fall {
+  /* Starts and ends on the still-frame pose so the loop has no visible seam. */
+  0%   { transform: translateY(0); opacity: 1; animation-timing-function: cubic-bezier(0.55, 0, 0.9, 0.45); }
+  34%  { transform: translateY(9px) scale(0.92, 1.08); opacity: 1; }
+  39%  { transform: translateY(11px) scale(1.5, 0.2); opacity: 0; }
+  80%  { transform: translateY(-6px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes tp-ripple {
+  0%, 35% { transform: scale(0.04); opacity: 0; }
+  38%     { opacity: 1; }
+  100%    { transform: scale(1); opacity: 0; }
+}
+@keyframes tp-splash {
+  0%, 37% { transform: translateY(0); opacity: 0; }
+  40%     { opacity: 1; }
+  48%     { transform: translateY(-6px); animation-timing-function: ease-in; }
+  58%     { transform: translateY(0); opacity: 0; }
+  100%    { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tp-logo.is-playing * { animation: none !important; }
 }

@@ -1,11 +1,15 @@
 import { createContext, type PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { api } from './api'
+import i18n from './i18n'
 import type { SiteBranding } from './types'
-import defaultLogo from './assets/logo.png'
+import defaultLogo from './assets/logo.svg'
 
-export const DEFAULT_SITE_NAME = 'CodexProxy'
+// 品牌名的唯一来源；界面上展示品牌时一律读取 useBranding().siteName（运行时站点名称）。
+export const DEFAULT_SITE_NAME = 'Tidepool'
+// 旧版本数据库默认值；仍按未自定义处理，显示为当前默认名称。
+const LEGACY_DEFAULT_SITE_NAMES = new Set(['CodexProxy'])
 export const DEFAULT_SITE_LOGO = defaultLogo
-const DEFAULT_FAVICON = `${import.meta.env.BASE_URL}favicon.png`
+const DEFAULT_FAVICON = `${import.meta.env.BASE_URL}favicon.svg`
 const DEFAULT_BACKGROUND_GLASS_OPACITY = 58
 const DEFAULT_BACKGROUND_GLASS_BLUR = 5
 
@@ -61,10 +65,20 @@ function clampGlassBlur(value?: number | null, fallback = DEFAULT_BACKGROUND_GLA
   return Math.min(20, Math.max(0, Math.round(value)))
 }
 
-function normalizeSiteName(value?: string | null): string {
+export function normalizeSiteName(value?: string | null): string {
   const trimmed = (value ?? '').trim()
-  return trimmed || DEFAULT_SITE_NAME
+  if (!trimmed || LEGACY_DEFAULT_SITE_NAMES.has(trimmed)) return DEFAULT_SITE_NAME
+  return trimmed
 }
+
+// 文案中的 {{siteName}} 由 i18next 默认变量提供，随运行时站点名称更新。
+function syncI18nSiteName(siteName: string) {
+  i18n.options.interpolation = {
+    ...i18n.options.interpolation,
+    defaultVariables: { ...i18n.options.interpolation?.defaultVariables, siteName },
+  }
+}
+syncI18nSiteName(DEFAULT_SITE_NAME)
 
 function setIconLink(rel: string, href: string) {
   let link = document.querySelector<HTMLLinkElement>(`link[rel="${rel}"]`)
@@ -122,10 +136,12 @@ export function BrandingProvider({ children }: PropsWithChildren) {
   const faviconHref = siteLogo || DEFAULT_FAVICON
 
   useEffect(() => {
-    document.title = `${siteName} 管理后台`
+    syncI18nSiteName(siteName)
+    document.title = siteName
     setIconLink('icon', faviconHref)
-    setIconLink('apple-touch-icon', faviconHref)
-  }, [faviconHref, siteName])
+    // iOS ignores SVG touch icons, so the default stays on the PNG render.
+    setIconLink('apple-touch-icon', siteLogo || `${import.meta.env.BASE_URL}favicon.png`)
+  }, [faviconHref, siteLogo, siteName])
 
   const value = useMemo<BrandingContextValue>(() => ({
     siteName,
