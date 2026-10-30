@@ -36,6 +36,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { useReadOnly } from "../hooks/useAdminSession";
 import {
   Sheet,
   SheetBody,
@@ -253,6 +254,8 @@ export default function AccountDetailSheet({
   onDelete,
 }: AccountDetailSheetProps) {
   const { t } = useTranslation();
+  // 只读访问：保留全部查看信息，隐藏所有会改动账号的控件。
+  const readOnly = useReadOnly();
   const open = Boolean(account);
   const [cooldownMode, setCooldownMode] = useState<string>("inherit");
   const [cooldownSeconds, setCooldownSeconds] = useState(300);
@@ -545,7 +548,7 @@ export default function AccountDetailSheet({
             {!isGrok ? <Section
               title={t("accounts.modelCooldownPolicy")}
               action={
-                (account.model_cooldowns?.length ?? 0) > 0 ? (
+                !readOnly && (account.model_cooldowns?.length ?? 0) > 0 ? (
                   <Button
                     type="button"
                     variant="ghost"
@@ -577,6 +580,7 @@ export default function AccountDetailSheet({
                       : t("common.disabled"),
                   })}
                 </div>
+                {!readOnly && (<>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="col-span-2">
                     <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
@@ -643,6 +647,7 @@ export default function AccountDetailSheet({
                 >
                   {t("accounts.saveModelCooldownPolicy")}
                 </Button>
+                </>)}
                 {(account.model_cooldowns?.length ?? 0) > 0 ? (
                   <div className="space-y-1.5 border-t border-border pt-3">
                     {account.model_cooldowns?.map((cooldown) => (
@@ -658,7 +663,7 @@ export default function AccountDetailSheet({
                             {cooldown.reason} · {cooldown.remaining_seconds}s
                           </div>
                         </div>
-                        <Button
+                        {!readOnly && <Button
                           type="button"
                           variant="ghost"
                           size="icon-sm"
@@ -666,7 +671,7 @@ export default function AccountDetailSheet({
                           title={t("accounts.clearModelCooldown")}
                         >
                           <X className="size-3.5" />
-                        </Button>
+                        </Button>}
                       </div>
                     ))}
                   </div>
@@ -897,7 +902,7 @@ export default function AccountDetailSheet({
             )}
           </SheetBody>
 
-          <SheetFooter>
+          {!readOnly && <SheetFooter>
             <div className="grid grid-cols-2 gap-2">
               {onQuickConfig ? (
                 <Button
@@ -1029,7 +1034,7 @@ export default function AccountDetailSheet({
                 {t("accounts.deleteAccount")}
               </Button>
             </div>
-          </SheetFooter>
+          </SheetFooter>}
         </SheetContent>
       ) : null}
     </Sheet>

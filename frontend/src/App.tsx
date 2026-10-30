@@ -1,5 +1,5 @@
-import { lazy, Suspense } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { lazy, Suspense, type ReactNode } from 'react'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import AuthGate from './components/AuthGate'
 import Layout from './components/Layout'
 import RouteErrorBoundary from './components/RouteErrorBoundary'
@@ -8,6 +8,8 @@ import { ToastProvider } from './components/ToastProvider'
 import { BrandingProvider } from './branding'
 import { VisibleChannelsProvider } from './visibleChannels'
 import { ThemeProvider } from './hooks/useTheme'
+import { useReadOnly } from './hooks/useAdminSession'
+import { isViewerRoute } from './lib/viewerAccess'
 import Dashboard from './pages/Dashboard'
 
 const Accounts = lazy(() => import('./pages/Accounts'))
@@ -56,11 +58,22 @@ export default function App() {
   )
 }
 
+/** Read-only viewers only reach the dashboard, account pool and usage pages. */
+function ViewerRouteGuard({ children }: { children: ReactNode }) {
+  const location = useLocation()
+  const readOnly = useReadOnly()
+  if (readOnly && !isViewerRoute(location.pathname)) {
+    return <Navigate to="/" replace />
+  }
+  return <>{children}</>
+}
+
 function AdminApp() {
   return (
     <AuthGate>
       <VisibleChannelsProvider>
       <Layout>
+        <ViewerRouteGuard>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/accounts" element={<Accounts />} />
@@ -92,6 +105,7 @@ function AdminApp() {
           <Route path="/guide" element={<Navigate to="/docs" replace />} />
           <Route path="/api-reference" element={<Navigate to="/docs#model-api" replace />} />
         </Routes>
+        </ViewerRouteGuard>
       </Layout>
       </VisibleChannelsProvider>
     </AuthGate>

@@ -44,6 +44,7 @@ import { Activity, Archive, ArrowDown, ArrowUp, SquarePen, Box, Clock, Zap, Spar
 
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
+import { useReadOnly, WriteOnly } from '../hooks/useAdminSession'
 
 /** Color ramp for reasoning effort: cool/muted → hot/intense. */
 function getReasoningEffortBadgeClassName(effort: string): string {
@@ -1145,6 +1146,8 @@ function UserAgentCell({ log, mobile = false }: { log: UsageLog; mobile?: boolea
 // New usage rows resolve by immutable incident ID. Only historical rows without
 // an ID fall back to the legacy nearest-timestamp inference endpoint.
 function CyberPolicyDetailButton({ log }: { log: UsageLog }) {
+  // 只读访问看不到拦截原文（提示词审查接口不在只读白名单内）。
+  const readOnly = useReadOnly()
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -1183,6 +1186,7 @@ function CyberPolicyDetailButton({ log }: { log: UsageLog }) {
   const content = (incident?.prompt_text || incident?.prompt_preview || legacyDetail?.full_text || legacyDetail?.text_preview || '').trim()
   const score = (value: number | null | undefined) => value === null || value === undefined ? t('usage.cyberPolicyUnscored') : String(value)
 
+  if (readOnly) return null
   return (
     <>
       <button
@@ -2298,6 +2302,7 @@ export default function Usage() {
                   <RefreshCw className={cn('size-3.5', logsLoading && 'animate-spin')} />
                   {t('common.refresh')}
                 </Button>
+                <WriteOnly>
                 <Button
                   variant="destructive"
                   size="sm"
@@ -2327,6 +2332,7 @@ export default function Usage() {
                 >
                   {clearing ? t('usage.clearingLogs') : t('usage.clearLogs')}
                 </Button>
+                </WriteOnly>
               </div>
             </div>
 

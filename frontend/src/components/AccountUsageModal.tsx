@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import Modal from './Modal'
 import { api } from '../api'
+import { useReadOnly } from '../hooks/useAdminSession'
 import type { AccountKeyStat, AccountModelStat, AccountRow, AccountUsageDayStat, AccountUsageDetail, ResetCreditItem, WhamDailyUsageBreakdownEntry, WhamDailyUsageCycle, WhamDailyUsageItem, WhamDailyUsageResponse, WhamDailyUsageSplit } from '../types'
 import { formatUsageNumber, officialUsdFromDailyItems, supportsOfficialUsage, isWorkspaceCreditHardStop } from '../lib/usageFormat'
 import { useShowFullUsageNumbers } from '../hooks/useShowFullUsageNumbers'
@@ -88,6 +89,8 @@ interface Props {
 export default function AccountUsageModal({ account, onClose, onCreditsReset, showCreditSettings = true, initialPage, onOfficialUsageRefreshed, officialUsage }: Props) {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  // 只读访问：积分开关/重置券属写操作，官方结算统计需请求上游，均不展示。
+  const readOnly = useReadOnly()
   const [data, setData] = useState<AccountUsageDetail | null>(null)
   const [dataRange, setDataRange] = useState<UsageRangeKey | null>(null)
   const [loading, setLoading] = useState(true)
@@ -98,7 +101,7 @@ export default function AccountUsageModal({ account, onClose, onCreditsReset, sh
 
   // 官方结算统计只有 ChatGPT OAuth 账号能查（wham 端点属于 ChatGPT 后端）。
   // codex_at、Responses API 中转和 Grok 没有这条链路，不显示这个 tab。
-  const showOfficialUsage = officialUsage ?? supportsOfficialUsage(account)
+  const showOfficialUsage = !readOnly && (officialUsage ?? supportsOfficialUsage(account))
 
   const [creditEnabled, setCreditEnabled] = useState(account.credit_enabled ?? false)
   const [creditSkipWindow, setCreditSkipWindow] = useState(account.credit_skip_usage_window ?? false)
@@ -213,7 +216,7 @@ export default function AccountUsageModal({ account, onClose, onCreditsReset, sh
         />
       )}
 
-      {showCreditSettings && (
+      {showCreditSettings && !readOnly && (
         <>
           <CreditSettings
             account={account}

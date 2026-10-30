@@ -21,6 +21,7 @@ import {
 import Modal from "../components/Modal";
 import ChannelLogo from "../components/ChannelLogo";
 import { useVisibleChannels } from "../visibleChannels";
+import { FALLBACK_VISIBLE_CHANNEL } from "../lib/visibleChannels";
 import ModelLogo from "../components/ModelLogo";
 import OperationResultsModal from "../components/OperationResultsModal";
 import { cn } from "@/lib/utils";
@@ -257,6 +258,7 @@ import AccountGroupMultiSelect from "../components/AccountGroupMultiSelect";
 import AccountQuickConfigSheet from "../components/AccountQuickConfigSheet";
 import ChannelMonitorConfigDialog from "../components/ChannelMonitorConfigDialog";
 import { useImportGroupIds } from "../hooks/useImportGroupIds";
+import { useReadOnly, WriteOnly } from "../hooks/useAdminSession";
 import AccountGroupFilterSelect, {
   EMPTY_ACCOUNT_GROUP_FILTER,
   accountMatchesGroupFilter,
@@ -1223,11 +1225,12 @@ const AccountTableRow = memo(function AccountTableRow({
   t: ReturnType<typeof useTranslation>["t"];
   actions: AccountRowActions;
 }) {
+  const readOnly = useReadOnly();
   const tableOverlayKind = resolveAccountOverlayKind(account);
   const tableOverlay = renderAccountStateOverlay(account, t, {
     compact: true,
     markerOnly: true,
-    onRecover: () => actions.resetStatus(account),
+    onRecover: readOnly ? undefined : () => actions.resetStatus(account),
   });
 
   return (
@@ -1255,6 +1258,7 @@ const AccountTableRow = memo(function AccountTableRow({
                           >
                             <TableCell>
                               <div className="flex items-center gap-1">
+                                {!readOnly && (
                                 <input
                                   type="checkbox"
                                   className="size-4 cursor-pointer accent-primary"
@@ -1262,6 +1266,7 @@ const AccountTableRow = memo(function AccountTableRow({
                                   onChange={() => actions.toggleSelect(account.id)}
                                   onClick={(event) => event.stopPropagation()}
                                 />
+                                )}
                                 {!visibleColumns.status && tableOverlayKind ? (
                                   <span className="sr-only">
                                     {tableOverlayKind === "disabled"
@@ -1269,7 +1274,7 @@ const AccountTableRow = memo(function AccountTableRow({
                                       : t("accounts.overloadOverlay")}
                                   </span>
                                 ) : null}
-                                {!visibleColumns.status &&
+                                {!readOnly && !visibleColumns.status &&
                                 tableOverlayKind === "overload" ? (
                                   <button
                                     type="button"
@@ -1334,7 +1339,7 @@ const AccountTableRow = memo(function AccountTableRow({
                                           event.stopPropagation();
                                           // 点击 = 跳转（account_href → base_url
                                           // 回退）；Alt/Option+点击 = 打开配置弹窗。
-                                          if (event.altKey) {
+                                          if (event.altKey && !readOnly) {
                                             actions.openHrefEditor(account);
                                           } else {
                                             actions.openHref(account);
@@ -1493,8 +1498,8 @@ const AccountTableRow = memo(function AccountTableRow({
                                     account.group_ids ?? [],
                                     allGroups,
                                   )}
-                                  onClick={() => actions.openQuickGroupEditor(account)}
-                                  emptyLabel={t("accounts.groupQuickEdit")}
+                                  onClick={readOnly ? undefined : () => actions.openQuickGroupEditor(account)}
+                                  emptyLabel={readOnly ? "-" : t("accounts.groupQuickEdit")}
                                 />
                               </TableCell>
                             )}
@@ -1503,7 +1508,7 @@ const AccountTableRow = memo(function AccountTableRow({
                                 <AccountProxyBadge
                                   account={account}
                                   ctx={proxyCtx}
-                                  onClick={() =>
+                                  onClick={readOnly ? undefined : () =>
                                     actions.openQuickProxyEditor(account)
                                   }
                                 />
@@ -1648,6 +1653,17 @@ const AccountTableRow = memo(function AccountTableRow({
                             {visibleColumns.actions && (
                               <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-0.5">
+                                  {readOnly ? (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    className="size-8"
+                                    onClick={() => actions.openUsage(account)}
+                                    title={t("accounts.usageDetail")}
+                                  >
+                                    <BarChart3 className="size-3.5" />
+                                  </Button>
+                                  ) : (<>
                                   <Button
                                     variant="ghost"
                                     size="icon-sm"
@@ -1724,6 +1740,7 @@ const AccountTableRow = memo(function AccountTableRow({
                                     onEditModels={() => actions.openModelsEditor(account)}
                                     onDelete={() => actions.remove(account)}
                                   />
+                                  </>)}
                                 </div>
                               </TableCell>
                             )}
@@ -1816,7 +1833,18 @@ const AccountCardItem = memo(function AccountCardItem({
   );
 });
 
+
+function accountsPathFor(view: UpstreamChannel): string {
+  return view === "grok"
+    ? "/accounts/grok"
+    : view === "antigravity"
+      ? "/accounts/antigravity"
+      : view === "claude"
+        ? "/accounts/claude"
+        : "/accounts";
+}
 export default function Accounts() {
+  const readOnly = useReadOnly();
   const { t } = useTranslation();
   const pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS;
   const [showAdd, setShowAdd] = useState(false);
@@ -1827,7 +1855,7 @@ export default function Accounts() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get("groupManager") === "1") {
-      setShowGroupManager(true);
+      if (!readOnly) setShowGroupManager(true);
       params.delete("groupManager");
       const query = params.toString();
       navigate(
@@ -1836,7 +1864,7 @@ export default function Accounts() {
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.search]);
+  }, [location.search, readOnly]);
   // ?pending=1 落到 Codex 账号页审核区（API Keys 门户卡片 / Grok 横幅共用）。
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -1860,21 +1888,13 @@ export default function Accounts() {
         ? "claude"
         : "codex";
   const { channels: visibleChannels, isChannelVisible } = useVisibleChannels();
-  // 设置页隐藏了某个渠道后，直接打开它的账号路由要回落到 Codex 视图。
+  // 设置页隐藏了某个渠道后，直接打开它的账号路由要回落到兜底渠道（Claude）视图。
   useEffect(() => {
-    if (!isChannelVisible(providerView)) navigate("/accounts", { replace: true });
+    if (!isChannelVisible(providerView)) navigate(accountsPathFor(FALLBACK_VISIBLE_CHANNEL), { replace: true });
   }, [isChannelVisible, navigate, providerView]);
   const setProviderView = useCallback(
     (view: UpstreamChannel) => {
-      navigate(
-        view === "grok"
-          ? "/accounts/grok"
-          : view === "antigravity"
-            ? "/accounts/antigravity"
-            : view === "claude"
-              ? "/accounts/claude"
-              : "/accounts",
-      );
+      navigate(accountsPathFor(view));
     },
     [navigate],
   );
@@ -4801,11 +4821,11 @@ export default function Accounts() {
         const blob = new Blob([JSON.stringify(data, null, 2)], {
           type: "application/json",
         });
-        downloadBlob(blob, `codex2api-codex-${ts}-${data.length}.json`);
+        downloadBlob(blob, `tidepool-codex-${ts}-${data.length}.json`);
       } else {
         const text = data.map((e) => e.refresh_token).join("\n");
         const blob = new Blob([text], { type: "text/plain" });
-        downloadBlob(blob, `codex2api-codex-rt-${ts}-${data.length}.txt`);
+        downloadBlob(blob, `tidepool-codex-rt-${ts}-${data.length}.txt`);
       }
       showToast(t("accounts.exportSuccess", { count: data.length }));
     } catch (error) {
@@ -6653,6 +6673,7 @@ export default function Accounts() {
 
                   return (
                     <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:justify-end">
+                      <WriteOnly>
                       <Button
                         size="sm"
                         className="min-w-0 sm:flex-none"
@@ -6730,6 +6751,7 @@ export default function Accounts() {
                         align="end"
                         items={cleanupItems}
                       />
+                      </WriteOnly>
                       <Button
                         variant="outline"
                         size="sm"
@@ -6751,12 +6773,14 @@ export default function Accounts() {
                             : t("accounts.showAnalysisCharts")}
                         </span>
                       </Button>
+                      <WriteOnly>
                       <HeaderActionMenu
                         label={t("accounts.manageActions")}
                         icon={<SlidersHorizontal className="size-3.5" />}
                         align="end"
                         sections={manageSections}
                       />
+                      </WriteOnly>
                     </div>
                   );
                 })()}
@@ -7299,6 +7323,7 @@ export default function Accounts() {
                       : t("accounts.showEmailDomainTags")}
                   </span>
                 </Button>
+                {!readOnly && (
                 <Button
                   type="button"
                   variant="outline"
@@ -7309,6 +7334,7 @@ export default function Accounts() {
                   <FolderOpen className="size-3.5 shrink-0" />
                   <span className="truncate">{t("accounts.groupManage")}</span>
                 </Button>
+                )}
               </div>
 
               {!isPersonalMode && (
@@ -7718,6 +7744,7 @@ export default function Accounts() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-10">
+                          {!readOnly && (
                           <input
                             ref={selectAllRef}
                             type="checkbox"
@@ -7725,6 +7752,7 @@ export default function Accounts() {
                             checked={allPageSelected}
                             onChange={toggleSelectAll}
                           />
+                          )}
                         </TableHead>
                         {visibleColumns.sequence && (
                           <TableHead className="text-[13px] font-semibold">
@@ -12025,7 +12053,7 @@ function RecycleBinView({
         const blob = new Blob([JSON.stringify(data, null, 2)], {
           type: "application/json",
         });
-        downloadBlob(blob, `codex2api-recycle-${ts}-${data.length}.json`);
+        downloadBlob(blob, `tidepool-recycle-${ts}-${data.length}.json`);
       } else {
         // TXT：每行一个邮箱（无邮箱则用 account_id 兜底），不导出 token。
         const lines = data
@@ -12045,7 +12073,7 @@ function RecycleBinView({
         });
         downloadBlob(
           blob,
-          `codex2api-recycle-emails-${ts}-${lines.length}.txt`,
+          `tidepool-recycle-emails-${ts}-${lines.length}.txt`,
         );
       }
       showToast(t("accounts.exportSuccess", { count: exportedCount }));
@@ -14121,6 +14149,7 @@ function AccountMobileCard({
   onOpenOfficialUsage?: () => void;
   onChannelMonitor?: () => void;
 }) {
+  const readOnly = useReadOnly();
   const displayName = account.openai_responses_api
     ? formatAccountName(account)
     : formatAccountListEmail(account);
@@ -14194,7 +14223,7 @@ function AccountMobileCard({
                   onClick={(event) => {
                     event.stopPropagation();
                     // 与表格行同口径：点击跳转，Alt/Option+点击配置。
-                    if (event.altKey) {
+                    if (event.altKey && !readOnly) {
                       onOpenHrefEditor();
                     } else {
                       onOpenHref();
@@ -14222,6 +14251,7 @@ function AccountMobileCard({
             {showColumn("id") && (
               <span className="codex-account-card__sequence">ID {account.id}</span>
             )}
+            {!readOnly && (
             <input
               type="checkbox"
               className="size-4 cursor-pointer rounded accent-primary"
@@ -14229,6 +14259,7 @@ function AccountMobileCard({
               onChange={onToggleSelect}
               aria-label={fullName}
             />
+            )}
           </label>
         </div>
         <div className="codex-account-card__topline">
@@ -14335,7 +14366,7 @@ function AccountMobileCard({
             {renderAccountStateOverlay(account, t, {
               compact: true,
               markerOnly: true,
-              onRecover: onResetStatus,
+              onRecover: readOnly ? undefined : onResetStatus,
             })}
           </div>
         )}
@@ -14438,12 +14469,12 @@ function AccountMobileCard({
               {showColumn("groups") && (
                 <GroupChipList
                   groups={groups}
-                  onClick={onEditGroups}
-                  emptyLabel={t("accounts.groupQuickEdit")}
+                  onClick={readOnly ? undefined : onEditGroups}
+                  emptyLabel={readOnly ? "-" : t("accounts.groupQuickEdit")}
                 />
               )}
               {showColumn("proxy") && (
-                <AccountProxyBadge account={account} ctx={proxyCtx} onClick={onEditProxy} />
+                <AccountProxyBadge account={account} ctx={proxyCtx} onClick={readOnly ? undefined : onEditProxy} />
               )}
             </div>
           )}
@@ -14503,18 +14534,21 @@ function AccountMobileCard({
           onClick={onOpenDetail}
           icon={<Eye className="size-3.5" />}
         />
+        {!readOnly && (
         <AccountCardActionButton
           title={t("accounts.editScheduler")}
           label={t("accounts.cardConfigure")}
           onClick={onEdit}
           icon={<SlidersHorizontal className="size-3.5" />}
         />
+        )}
         <AccountCardActionButton
           title={t("accounts.usageDetail")}
           label={t("accounts.cardUsage")}
           onClick={onUsage}
           icon={<BarChart3 className="size-3.5" />}
         />
+        {!readOnly && (
         <AccountRowActionsMenu
           t={t}
           account={account}
@@ -14532,6 +14566,7 @@ function AccountMobileCard({
           onEditModels={onEditModels}
           onDelete={onDelete}
         />
+        )}
       </footer>
     </article>
   );
@@ -14940,7 +14975,8 @@ function UsageCell({
     }
   }, [account.id, onRefreshed, refreshing, showToast, t]);
 
-  const refreshButton = (
+  const readOnly = useReadOnly();
+  const refreshButton = readOnly ? null : (
     <button
       type="button"
       onClick={handleRefresh}
@@ -15104,6 +15140,8 @@ function formatAPIAccountBalance(data: OpenAIResponsesBalanceResponse): string {
 
 function APIAccountBalanceBadge({ accountId }: { accountId: number }) {
   const { t } = useTranslation();
+  // 余额查询会带着账号密钥请求上游，只读访问不发起。
+  const readOnly = useReadOnly();
   const cached = apiBalanceCache.get(accountId);
   const [state, setState] = useState<APIBalanceLoadState>(() =>
     cached && cached.expiresAt > Date.now()
@@ -15138,7 +15176,7 @@ function APIAccountBalanceBadge({ accountId }: { accountId: number }) {
   }, []);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || readOnly) return;
     let active = true;
     setState((current) => (current.data || current.error ? current : { loading: true }));
     void loadAPIAccountBalance(accountId).then((next) => {
@@ -15147,7 +15185,7 @@ function APIAccountBalanceBadge({ accountId }: { accountId: number }) {
     return () => {
       active = false;
     };
-  }, [accountId, visible]);
+  }, [accountId, visible, readOnly]);
 
   const title = state.data
     ? t("accounts.apiBalanceTooltip", {
@@ -15158,6 +15196,7 @@ function APIAccountBalanceBadge({ accountId }: { accountId: number }) {
       ? t("accounts.apiBalanceFailed", { error: state.error })
       : t("accounts.apiBalanceLoading");
 
+  if (readOnly) return null;
   return (
     <button
       type="button"

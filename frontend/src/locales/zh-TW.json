@@ -269,6 +269,8 @@
     }
   },
   "common": {
+    "readOnlyBadge": "唯讀",
+    "readOnlyDenied": "唯讀帳號無權執行此操作",
     "frontendBuildVersion": "前端建置：{{version}}",
     "versionMismatch": "前端資源與服務版本不一致，建議重新建置前端後再編譯程式。",
     "success": "成功",
@@ -1620,7 +1622,7 @@
       },
       "attachment": {
         "title": "附件內容解析",
-        "description": "透過獨立服務擷取受支援附件的文字後再檢查。Codex2API 不直接下載任意使用者 URL，預設關閉並以影子層記錄。",
+        "description": "透過獨立服務擷取受支援附件的文字後再檢查。{{siteName}} 不直接下載任意使用者 URL，預設關閉並以影子層記錄。",
         "enabled": "啟用附件解析",
         "enabledHint": "只有部署受控的附件解析服務後才開啟；關閉時仍可檢查附件引用中繼資料。",
         "allowRemoteURLs": "允許解析遠端 URL",
@@ -1862,7 +1864,7 @@
     "exportSuccess": "已匯出 {{count}} 份 Claude 憑據",
     "exportFailed": "Claude 憑據匯出失敗",
     "exportConfirmTitle": "匯出全部 Claude 憑據？",
-    "exportConfirmDescription": "下載檔案包含完整 OAuth 憑據與帳號指紋,可直接匯入另一套 Codex2API。請妥善保管,不要傳給無權限人員。",
+    "exportConfirmDescription": "下載檔案包含完整 OAuth 憑據與帳號指紋,可直接匯入另一個 {{siteName}} 實例。請妥善保管,不要傳給無權限人員。",
     "exportSelectedConfirmTitle": "匯出已選 Claude 憑據？",
     "exportSelectedConfirmDescription": "將匯出已選 {{count}} 個帳號的完整 OAuth 憑據與帳號指紋。",
     "emptyTitle": "還沒有 Claude 帳號",
@@ -1880,7 +1882,7 @@
     "proxyLabel": "代理(可選)",
     "useProxyPool": "從代理池自動分配一條空閒代理",
     "exchange": "完成登入並新增",
-    "importHint": "貼上 cmd/claude_login 輸出或 Codex2API 匯出的 JSON 憑據(OAuth 可只給 refresh_token;auth_kind=setup_token 只需 access_token),支援陣列批量;多帳號 ZIP 請先解壓後逐個匯入。",
+    "importHint": "貼上 cmd/claude_login 輸出或 {{siteName}} 匯出的 JSON 憑據(OAuth 可只給 refresh_token;auth_kind=setup_token 只需 access_token),支援陣列批量;多帳號 ZIP 請先解壓後逐個匯入。",
     "importPlaceholder": "{ \"access_token\": \"...\", \"refresh_token\": \"sk-ant-ort01-...\" }",
     "import": "匯入並新增",
     "added": "已新增 Claude 帳號",
@@ -2203,5 +2205,27 @@
     "clearDone": "已清除 {{cleared}} 個帳號的配額事實",
     "clearPartial": "已清除 {{cleared}} 個帳號的配額事實，{{failed}} 個失敗",
     "clearFailed": "清除配額事實失敗：{{error}}"
+  },
+  "viewerKeys": {
+    "title": "唯讀存取金鑰",
+    "desc": "發給需要查看號池與用量、但不能做任何操作的人",
+    "intro": "持有唯讀金鑰的人在登入頁輸入金鑰後，只能查看儀表板、號池（信箱部分遮蔽）和使用統計，無法執行任何修改；權杖、匯出、代理憑證和系統金鑰永遠不會下發。每個人單獨發一個，方便隨時撤銷。",
+    "namePlaceholder": "備註名，如：營運小王",
+    "create": "建立唯讀金鑰",
+    "empty": "還沒有唯讀金鑰",
+    "createdAt": "建立於",
+    "lastUsed": "最近使用",
+    "never": "從未",
+    "revoke": "撤銷",
+    "revokeTitle": "撤銷唯讀金鑰？",
+    "revokeDesc": "「{{name}}」將立即失去存取權限，此操作無法復原。",
+    "revoked": "已撤銷",
+    "revokedBadge": "已撤銷",
+    "createdTitle": "唯讀金鑰已建立：{{name}}",
+    "createdDesc": "請立即複製並安全地交給對方。關閉後將無法再次查看完整金鑰。",
+    "copy": "複製",
+    "copied": "已複製",
+    "copyFailed": "複製失敗，請手動選取文字複製",
+    "saved": "我已保存"
   }
 }

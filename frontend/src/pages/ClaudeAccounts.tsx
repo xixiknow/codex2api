@@ -107,6 +107,7 @@ import {
 } from "../components/AccountStateOverlay";
 import { useToast } from "../hooks/useToast";
 import { useConfirmDialog } from "../hooks/useConfirmDialog";
+import { useReadOnly, WriteOnly } from "../hooks/useAdminSession";
 import { getErrorMessage } from "../utils/error";
 import { getAccountStatusBadgeStatus } from "../lib/usageFormat";
 import {
@@ -589,6 +590,7 @@ function ClaudeConcurrencyBadge({ acc }: { acc: AccountRow }) {
 
 export default function ClaudeAccounts({ headerSlot }: { headerSlot?: ReactNode } = {}) {
   const { t } = useTranslation();
+  const readOnly = useReadOnly();
   const { showToast } = useToast();
   const { confirm, confirmDialog } = useConfirmDialog();
 
@@ -840,7 +842,8 @@ export default function ClaudeAccounts({ headerSlot }: { headerSlot?: ReactNode 
     [accounts],
   );
   useEffect(() => {
-    if (!legacyUsageRefreshKey) return undefined;
+    // 只读 viewer 不自动触发用量刷新(POST),后端会拒绝。
+    if (!legacyUsageRefreshKey || readOnly) return undefined;
     const pending = legacyUsageRefreshKey
       .split(",")
       .map(Number)
@@ -857,7 +860,7 @@ export default function ClaudeAccounts({ headerSlot }: { headerSlot?: ReactNode 
     return () => {
       cancelled = true;
     };
-  }, [legacyUsageRefreshKey, reload]);
+  }, [legacyUsageRefreshKey, readOnly, reload]);
 
   const mergeLiveStateIntoAccount = useCallback((account: AccountRow): AccountRow => {
     const live = liveState[String(account.id)];
@@ -1280,7 +1283,7 @@ export default function ClaudeAccounts({ headerSlot }: { headerSlot?: ReactNode 
     setExporting(true);
     try {
       const result = await api.exportClaudeAccounts(ids, scope === "healthy" ? "healthy" : "all");
-      downloadNamedBlob(result, "codex2api-claude-credentials.json");
+      downloadNamedBlob(result, "tidepool-claude-credentials.json");
       showToast(t("claude.exportSuccess", { count: result.count ?? (ids?.length || 1) }), "success");
     } catch (error) {
       showToast(t("claude.exportFailed") + ": " + getErrorMessage(error), "error");
@@ -1516,6 +1519,7 @@ export default function ClaudeAccounts({ headerSlot }: { headerSlot?: ReactNode 
         titleAdornment={headerSlot}
         actions={
           <div className="flex w-full flex-wrap items-center gap-1.5 sm:gap-2 [&>button]:h-8">
+            <WriteOnly>
             <Button size="sm" className="min-w-0 sm:flex-none" onClick={() => openAdd("oauth")}>
               <Plus className="size-3.5" />
               {t("claude.addAccount")}
@@ -1538,6 +1542,7 @@ export default function ClaudeAccounts({ headerSlot }: { headerSlot?: ReactNode 
                 {exporting ? t("claude.exporting") : selectedIds.length > 0 ? t("claude.exportSelected") : t("claude.exportAll")}
               </span>
             </Button>
+            </WriteOnly>
             <Button
               variant="outline"
               size="sm"
@@ -1552,6 +1557,7 @@ export default function ClaudeAccounts({ headerSlot }: { headerSlot?: ReactNode 
                 {showAnalysis ? t("accounts.hideAnalysisCharts") : t("accounts.showAnalysisCharts")}
               </span>
             </Button>
+            <WriteOnly>
             <HeaderActionMenu
               label={t("accounts.manageActions")}
               icon={<SlidersHorizontal className="size-3.5" />}
@@ -1559,6 +1565,7 @@ export default function ClaudeAccounts({ headerSlot }: { headerSlot?: ReactNode 
               sections={manageSections}
               compact
             />
+            </WriteOnly>
             <Button
               variant="outline"
               size="icon-sm"
@@ -1786,9 +1793,11 @@ export default function ClaudeAccounts({ headerSlot }: { headerSlot?: ReactNode 
                 {hideDomainTags ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
                 {hideDomainTags ? t("accounts.showEmailDomainTags") : t("accounts.hideEmailDomainTags")}
               </Button>
+              <WriteOnly>
               <Button type="button" variant="ghost" size="sm" className="justify-start px-2 text-xs text-muted-foreground" onClick={() => setShowManageGroups(true)}>
                 <FolderOpen className="size-3.5" />{t("accounts.groupManage")}
               </Button>
+              </WriteOnly>
             </div>
           </div>
         </div>
@@ -1864,7 +1873,7 @@ export default function ClaudeAccounts({ headerSlot }: { headerSlot?: ReactNode 
       </div>
 
       {/* 批量操作条(与 Codex 同款 sticky 玻璃条) */}
-      {selectedIds.length > 0 ? (
+      {selectedIds.length > 0 && !readOnly ? (
         <div className="sticky top-2 z-20 mb-4 flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-card/95 px-3 py-2 text-sm shadow-lg backdrop-blur-sm max-lg:flex-col max-lg:items-stretch">
           <span className="font-semibold text-primary">{t("common.selected", { count: selectedIds.length })}</span>
           <div className="flex flex-wrap items-center justify-end gap-1.5 max-lg:justify-start">
@@ -1922,10 +1931,12 @@ export default function ClaudeAccounts({ headerSlot }: { headerSlot?: ReactNode 
             emptyDescription={poolEmpty ? t("claude.emptyDescription") : t("claude.noMatchesDescription")}
             action={
               poolEmpty ? (
+                readOnly ? null : (
                 <Button onClick={() => openAdd("oauth")}>
                   <Plus className="size-4" />
                   {t("claude.addAccount")}
                 </Button>
+                )
               ) : (
                 <Button variant="outline" onClick={clearFilters}>
                   {t("claude.clearFilters")}
@@ -1937,6 +1948,7 @@ export default function ClaudeAccounts({ headerSlot }: { headerSlot?: ReactNode 
               <Table>
                 <TableHeader>
                   <TableRow>
+                    {!readOnly ? (
                     <TableHead className="w-10">
                       <input
                         type="checkbox"
@@ -1946,6 +1958,7 @@ export default function ClaudeAccounts({ headerSlot }: { headerSlot?: ReactNode 
                         aria-label={t("accounts.selectAll")}
                       />
                     </TableHead>
+                    ) : null}
                     <TableHead className="text-[13px] font-semibold">{t("accounts.sequence")}</TableHead>
                     <TableHead className="text-[13px] font-semibold">{t("accounts.email")}</TableHead>
                     {visibleCols.tags ? <TableHead className="text-[13px] font-semibold">{t("accounts.tagsLabel")}</TableHead> : null}
@@ -2136,6 +2149,7 @@ export default function ClaudeAccounts({ headerSlot }: { headerSlot?: ReactNode 
             <section className="space-y-2.5">
               <div className="flex items-center justify-between gap-2">
                 <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t("claude.providerTitle")}</h3>
+                <WriteOnly>
                 <Button
                   type="button"
                   variant="ghost"
@@ -2150,6 +2164,7 @@ export default function ClaudeAccounts({ headerSlot }: { headerSlot?: ReactNode 
                   <SlidersHorizontal className="size-3" />
                   {t("claude.modelsWhitelistAction")}
                 </Button>
+                </WriteOnly>
               </div>
               <div className="space-y-2 rounded-xl border border-orange-200/70 bg-orange-50/50 p-3 text-xs dark:border-orange-900/60 dark:bg-orange-950/20">
                 {detailTarget.claude_auth_kind === "api_key" ? <>
@@ -2284,6 +2299,7 @@ function ClaudeAccountRow({
   onDelete: () => void;
 }) {
   const { t } = useTranslation();
+  const readOnly = useReadOnly();
   const isAPIKey = acc.claude_auth_kind === "api_key";
   const pct5h = claudeUsagePct(acc.usage_percent_5h);
   const pct7d = claudeUsagePct(acc.usage_percent_7d);
@@ -2294,7 +2310,7 @@ function ClaudeAccountRow({
   const tableOverlay = renderAccountStateOverlay(acc, t, {
     compact: true,
     markerOnly: true,
-    onRecover: onResetStatus,
+    onRecover: readOnly ? undefined : onResetStatus,
   });
   const hasUsage =
     pct5h !== null ||
@@ -2303,7 +2319,10 @@ function ClaudeAccountRow({
     hasWindowDetail(acc.usage_7d_detail) ||
     (acc.claude_usage_windows ?? []).some((window) => window.model_scoped);
 
-  const rowMenuItems: HeaderActionMenuItem[] = [
+  // 只读 viewer 只保留查看用量明细。
+  const rowMenuItems: HeaderActionMenuItem[] = readOnly ? [
+    { key: "usage", label: t("accounts.usageDetail"), icon: <BarChart3 className="size-3.5" />, onSelect: onUsage },
+  ] : [
     { key: "edit", label: t("claude.editTitle"), icon: <Pencil className="size-3.5" />, onSelect: onEdit },
     { key: "usage", label: t("accounts.usageDetail"), icon: <BarChart3 className="size-3.5" />, onSelect: onUsage },
     { key: "test", label: t("accounts.testConnection"), icon: <Zap className="size-3.5" />, onSelect: onTest },
@@ -2368,6 +2387,7 @@ function ClaudeAccountRow({
       }}
     >
       {/* 勾选 */}
+      {!readOnly ? (
       <TableCell>
         <div className="flex items-center gap-1">
           <input
@@ -2400,6 +2420,7 @@ function ClaudeAccountRow({
           ) : null}
         </div>
       </TableCell>
+      ) : null}
       {/* 序号 */}
       <TableCell className="text-[14px] font-mono text-muted-foreground" title={`ID ${acc.id}`}>
         {no}
@@ -2438,7 +2459,11 @@ function ClaudeAccountRow({
                     {t("accounts.lock")}
                   </span>
                 ) : null}
-                {acc.models?.length ? (
+                {acc.models?.length && readOnly ? (
+                  <span className="inline-flex items-center rounded-md bg-orange-50 px-1.5 py-0.5 text-[10px] font-medium text-orange-700 ring-1 ring-inset ring-orange-600/20 dark:bg-orange-950 dark:text-orange-300 dark:ring-orange-400/20">
+                    {t("claude.modelCount", { count: acc.models.length })}
+                  </span>
+                ) : acc.models?.length ? (
                   <button
                     type="button"
                     onClick={(event) => {
@@ -2478,12 +2503,12 @@ function ClaudeAccountRow({
       ) : null}
       {columns.groups ? (
         <TableCell className="min-w-[140px]">
-          <ClaudeGroupChipList groups={accGroups} onClick={onAssignGroups} emptyLabel={t("accounts.groupQuickEdit")} />
+          <ClaudeGroupChipList groups={accGroups} onClick={readOnly ? undefined : onAssignGroups} emptyLabel={t("accounts.groupQuickEdit")} />
         </TableCell>
       ) : null}
       {columns.proxy ? (
         <TableCell className="min-w-[120px] max-w-[180px]">
-          <AccountProxyBadge account={acc} ctx={proxyCtx} onClick={onEditProxy} />
+          <AccountProxyBadge account={acc} ctx={proxyCtx} onClick={readOnly ? undefined : onEditProxy} />
         </TableCell>
       ) : null}
       {columns.priority ? (
@@ -2549,12 +2574,12 @@ function ClaudeAccountRow({
                 <UsageWindow label={t("claude.usage7d")} pct={pct7d} reset={acc.reset_7d_at} detail={acc.usage_7d_detail} />
                 <ClaudeScopedUsageWindows windows={acc.claude_usage_windows} />
               </div>
-              <UsageRefreshButton onRefresh={onUsageRefreshed} title={t("accounts.refreshUsage")} />
+              {!readOnly ? <UsageRefreshButton onRefresh={onUsageRefreshed} title={t("accounts.refreshUsage")} /> : null}
             </div>
           ) : (
             <div className="flex items-center gap-1">
               <span className="text-[13px] text-muted-foreground">-</span>
-              <UsageRefreshButton onRefresh={onUsageRefreshed} title={t("accounts.refreshUsage")} />
+              {!readOnly ? <UsageRefreshButton onRefresh={onUsageRefreshed} title={t("accounts.refreshUsage")} /> : null}
             </div>
           )}
         </TableCell>
@@ -2578,15 +2603,19 @@ function ClaudeAccountRow({
       <TableCell data-account-actions className="text-right">
         <div className="flex items-center justify-end gap-0.5">
           <div className="hidden items-center gap-0.5 @4xl/claude-accounts:flex">
+          {!readOnly ? (
           <Button variant="ghost" size="icon-sm" className="size-8" onClick={onEdit} title={t("claude.editTitle")} aria-label={t("claude.editTitle")}>
             <Pencil className="size-3.5" />
           </Button>
+          ) : null}
           <Button variant="ghost" size="icon-sm" className="size-8" onClick={onUsage} title={t("accounts.usageDetail")} aria-label={t("accounts.usageDetail")}>
             <BarChart3 className="size-3.5" />
           </Button>
+          {!readOnly ? (
           <Button variant="ghost" size="icon-sm" className="size-8" onClick={onTest} title={t("accounts.testConnection")} aria-label={t("accounts.testConnection")}>
             <Zap className="size-3.5" />
           </Button>
+          ) : null}
           </div>
           <HeaderActionMenu
             label={t("accounts.rowActions")}
@@ -2694,11 +2723,36 @@ function ClaudeGroupChipList({
   emptyLabel,
 }: {
   groups: AccountGroup[];
-  onClick: () => void;
+  onClick?: () => void;
   emptyLabel: string;
 }) {
   const visible = groups.slice(0, 3);
   const hidden = groups.length - visible.length;
+  // 无 onClick(只读 viewer)时只展示分组,不给编辑入口。
+  if (!onClick) {
+    if (groups.length === 0) return null;
+    return (
+      <div className="flex flex-wrap items-center gap-1">
+        {visible.map((group) => {
+          const color = normalizeGroupColor(group.color);
+          return (
+            <span
+              key={group.id}
+              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold"
+              style={{ backgroundColor: `${color}14`, color, boxShadow: `inset 0 0 0 1px ${color}33` }}
+              title={group.description || group.name}
+            >
+              <span className="size-1.5 rounded-full bg-current" />
+              {group.name}
+            </span>
+          );
+        })}
+        {hidden > 0 ? (
+          <span className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">+{hidden}</span>
+        ) : null}
+      </div>
+    );
+  }
   return (
     <button type="button" className="group flex flex-wrap items-center gap-1 text-left" onClick={onClick} title={emptyLabel}>
       {groups.length === 0 ? (

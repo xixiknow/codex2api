@@ -75,6 +75,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useConfirmDialog } from "../hooks/useConfirmDialog";
+import { useReadOnly, WriteOnly } from "../hooks/useAdminSession";
 import { useAccountTableColumns } from "../hooks/useAccountTableColumns";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useOperationProgress } from "../hooks/useOperationProgress";
@@ -164,6 +165,7 @@ function AntigravityAccounts({
   showOperationResults?: boolean;
 } = {}) {
   const { t } = useTranslation();
+  const readOnly = useReadOnly();
   const isTableViewport = useMediaQuery("(min-width: 768px)");
   const { columns: visibleColumns, toggleColumn, resetColumns } = useAccountTableColumns(
     COLUMNS_STORAGE_KEY,
@@ -328,7 +330,8 @@ function AntigravityAccounts({
   }, []);
 
   useEffect(() => {
-    if (detailAccountId === null) {
+    // 只读 viewer 无权读取管理状态(GET .../antigravity/state 返回 403),不发请求。
+    if (detailAccountId === null || readOnly) {
       setManagementState(null);
       setManagementError(null);
       setManagementAction(null);
@@ -369,7 +372,7 @@ function AntigravityAccounts({
         managementAbortRef.current = null;
       }
     };
-  }, [detailAccountId, isCurrentDetailRequest]);
+  }, [detailAccountId, isCurrentDetailRequest, readOnly]);
 
   // ---------- 加载 ----------
   const reloadGroups = useCallback(async () => {
@@ -770,7 +773,7 @@ function AntigravityAccounts({
         await api.exportAntigravityAccounts(ids);
       const count = responseCount ?? (ids?.length || undefined);
       // 导出始终是单个 JSON 文件(多账号为数组,与 Codex 导出一致),服务端文件名缺失时按同样格式兜底。
-      const fallback = `codex2api-antigravity-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}-${count ?? 0}.json`;
+      const fallback = `tidepool-antigravity-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}-${count ?? 0}.json`;
       downloadAntigravityBlob(blob, filename || fallback);
       showToast(
         count === undefined
@@ -1223,6 +1226,7 @@ function AntigravityAccounts({
         titleAdornment={headerSlot}
         actions={
           <div className="flex w-full flex-wrap items-center gap-1.5 sm:gap-2 [&>button]:h-8">
+            <WriteOnly>
             <Button size="sm" onClick={() => setShowAdd(true)}>
               <Plus className="size-3.5" />
               {t("antigravity.addAccount")}
@@ -1274,6 +1278,7 @@ function AntigravityAccounts({
               sections={manageSections}
               compact
             />
+            </WriteOnly>
             <Button
               variant="outline"
               size="icon-sm"
@@ -1531,7 +1536,7 @@ function AntigravityAccounts({
       </div>
 
       {/* 批量操作条(与其他渠道同款 sticky 玻璃条) */}
-      {selectedIds.length > 0 ? (
+      {selectedIds.length > 0 && !readOnly ? (
         <div className="sticky top-2 z-20 mb-4 flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-card/95 px-3 py-2 text-sm shadow-lg backdrop-blur-sm max-lg:flex-col max-lg:items-stretch">
           <span className="inline-flex items-center gap-2 font-semibold text-primary">
             {batchBusy ? <Loader2 className="size-3.5 animate-spin" /> : null}
@@ -1650,6 +1655,7 @@ function AntigravityAccounts({
             emptyDescription={poolEmpty ? t("antigravity.emptyDescription") : t("antigravity.noMatchesDescription")}
             action={
               poolEmpty ? (
+                readOnly ? null : (
                 <div className="flex flex-wrap items-center justify-center gap-2">
                   <Button onClick={() => setShowAdd(true)}>
                     <Plus className="size-4" />
@@ -1664,6 +1670,7 @@ function AntigravityAccounts({
                     {t("antigravity.importFiles")}
                   </Button>
                 </div>
+                )
               ) : (
                 <Button variant="outline" onClick={clearFilters}>
                   {t("antigravity.clearFilters")}
@@ -1676,6 +1683,7 @@ function AntigravityAccounts({
                 <Table className="[&_td]:px-2.5 [&_th]:px-2.5 [&_td]:py-3">
                   <TableHeader>
                     <TableRow>
+                      {!readOnly ? (
                       <TableHead className="w-10">
                         <input
                           type="checkbox"
@@ -1685,6 +1693,7 @@ function AntigravityAccounts({
                           aria-label={t("accounts.selectAll")}
                         />
                       </TableHead>
+                      ) : null}
                       <TableHead className="w-12 text-[13px] font-semibold">{t("accounts.sequence")}</TableHead>
                       {visibleColumns.id ? renderSortHead("id", t("accounts.idColumn")) : null}
                       <TableHead className="text-[13px] font-semibold">{t("antigravity.columnAccount")}</TableHead>

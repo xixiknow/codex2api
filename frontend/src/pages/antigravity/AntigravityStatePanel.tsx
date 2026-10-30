@@ -23,6 +23,7 @@ import type {
   AntigravityPermissionsSnapshot,
 } from "../../types";
 import ChannelLogo from "../../components/ChannelLogo";
+import { useReadOnly } from "../../hooks/useAdminSession";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -305,6 +306,8 @@ export function AntigravityStateSection({
 }: AntigravityStateProps & { layout?: PanelLayout }) {
   const { t } = useTranslation();
   const labels = useStateLabels();
+  // 只读 viewer 无权读取 / 同步管理状态(GET .../antigravity/state 返回 403),整段不展示。
+  const readOnly = useReadOnly();
   const wide = layout === "wide";
   const latest = state?.capabilities?.[0];
   const lastSynced = state?.last_synced_at || state?.last_sync_attempt_at;
@@ -337,6 +340,7 @@ export function AntigravityStateSection({
       </Button>
     </>
   );
+  if (readOnly) return null;
   return (
     <PanelSection
       layout={layout}

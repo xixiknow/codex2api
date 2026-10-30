@@ -28,6 +28,7 @@ import AccountProxyBadge from "../../components/AccountProxyBadge";
 import { HeaderActionMenu, type HeaderActionMenuItem } from "../../components/HeaderActionMenu";
 import RequestCountPills from "../../components/RequestCountPills";
 import StatusBadge from "../../components/StatusBadge";
+import { useReadOnly } from "../../hooks/useAdminSession";
 import type { ProxyBindingContext } from "../../lib/accountProxyBinding";
 import { getAccountStatusBadgeStatus } from "../../lib/usageFormat";
 import { Button } from "@/components/ui/button";
@@ -321,7 +322,8 @@ function useRowMenuItems(props: AntigravityRowProps): HeaderActionMenuItem[] {
   const busy = busyAction !== null;
   const disabled = account.enabled === false;
   const isAPIKey = account.antigravity_auth_kind === "api_key";
-  return [
+  const readOnly = useReadOnly();
+  const viewItems: HeaderActionMenuItem[] = [
     ...(isAPIKey
       ? []
       : [
@@ -338,6 +340,11 @@ function useRowMenuItems(props: AntigravityRowProps): HeaderActionMenuItem[] {
       icon: <BarChart3 className="size-3.5" />,
       onSelect: () => props.onUsage(account),
     },
+  ];
+  // 只读 viewer 只保留查看类菜单项。
+  if (readOnly) return viewItems;
+  return [
+    ...viewItems,
     {
       key: "export",
       label: t("antigravity.exportOne"),
@@ -383,8 +390,11 @@ function RowActions(props: AntigravityRowProps) {
   const menuItems = useRowMenuItems(props);
   const isAPIKey = account.antigravity_auth_kind === "api_key";
   const busy = busyAction !== null;
+  const readOnly = useReadOnly();
   return (
     <div className="flex items-center justify-end gap-0.5">
+      {!readOnly ? (
+      <>
       <Button
         variant="ghost"
         size="icon-sm"
@@ -418,6 +428,8 @@ function RowActions(props: AntigravityRowProps) {
       >
         <Pencil className="size-3.5" />
       </Button>
+      </>
+      ) : null}
       <HeaderActionMenu
         label={t("accounts.rowActions")}
         icon={busy && busyAction !== "sync" ? <Loader2 className="size-3.5 animate-spin" /> : <MoreHorizontal className="size-3.5" />}
@@ -432,6 +444,7 @@ function RowActions(props: AntigravityRowProps) {
 
 export const AntigravityAccountRow = memo(function AntigravityAccountRow(props: AntigravityRowProps) {
   const { account, columns } = props;
+  const readOnly = useReadOnly();
   return (
     <TableRow
       data-state={props.selected ? "selected" : undefined}
@@ -445,6 +458,7 @@ export const AntigravityAccountRow = memo(function AntigravityAccountRow(props: 
         props.onOpenDetail(account);
       }}
     >
+      {!readOnly ? (
       <TableCell className="w-10">
         <input
           type="checkbox"
@@ -454,6 +468,7 @@ export const AntigravityAccountRow = memo(function AntigravityAccountRow(props: 
           aria-label={accountLabel(account)}
         />
       </TableCell>
+      ) : null}
       <TableCell className="font-mono text-[13px] text-muted-foreground" title={`ID ${account.id}`}>
         {props.sequence}
       </TableCell>
@@ -480,7 +495,7 @@ export const AntigravityAccountRow = memo(function AntigravityAccountRow(props: 
       ) : null}
       {columns.proxy ? (
         <TableCell className="min-w-[120px] max-w-[180px]">
-          <AccountProxyBadge account={account} ctx={props.proxyCtx} onClick={() => props.onEditProxy(account)} />
+          <AccountProxyBadge account={account} ctx={props.proxyCtx} onClick={readOnly ? undefined : () => props.onEditProxy(account)} />
         </TableCell>
       ) : null}
       {columns.status ? (
@@ -515,6 +530,7 @@ export const AntigravityAccountRow = memo(function AntigravityAccountRow(props: 
 export const AntigravityAccountCard = memo(function AntigravityAccountCard(props: AntigravityRowProps) {
   const { t } = useTranslation();
   const { account } = props;
+  const readOnly = useReadOnly();
   return (
     <article
       className={cn(
@@ -528,6 +544,7 @@ export const AntigravityAccountCard = memo(function AntigravityAccountCard(props
       }}
     >
       <div className="flex items-start gap-2.5">
+        {!readOnly ? (
         <input
           type="checkbox"
           className="mt-2.5 size-4 shrink-0 cursor-pointer accent-primary"
@@ -535,6 +552,7 @@ export const AntigravityAccountCard = memo(function AntigravityAccountCard(props
           onChange={() => props.onToggleSelect(account.id)}
           aria-label={accountLabel(account)}
         />
+        ) : null}
         <div className="min-w-0 flex-1">
           <AccountIdentity
             account={account}
@@ -566,7 +584,7 @@ export const AntigravityAccountCard = memo(function AntigravityAccountCard(props
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <TodayStatsCell account={account} />
-          <AccountProxyBadge account={account} ctx={props.proxyCtx} onClick={() => props.onEditProxy(account)} />
+          <AccountProxyBadge account={account} ctx={props.proxyCtx} onClick={readOnly ? undefined : () => props.onEditProxy(account)} />
         </div>
       </div>
       <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-2">

@@ -1,5 +1,5 @@
 import type { PropsWithChildren, ReactNode } from 'react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   ArrowRight,
@@ -13,7 +13,9 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import { ADMIN_AUTH_REQUIRED_EVENT, api, getAdminKey, setAdminKey } from '../api'
-import { DEFAULT_SITE_LOGO, useBranding } from '../branding'
+import { useBranding } from '../branding'
+import { BrandMark } from './BrandMark'
+import { AdminSessionProvider, fetchAdminSession, type AdminSession } from '../hooks/useAdminSession'
 import type { SetupHintsResponse, SystemSettings } from '../types'
 
 type AuthStatus =
@@ -42,7 +44,7 @@ interface SetupCheck {
 
 const MIN_SECRET_LEN = 8
 const MAX_SECRET_LEN = 256
-const BOOTSTRAP_TOKEN_LOG_COMMAND = 'docker compose logs codex2api | grep "bootstrap token"'
+const BOOTSTRAP_TOKEN_LOG_COMMAND = 'docker compose logs | grep "bootstrap token"'
 const SETUP_SERVICE_URL_KEY = 'codex2api:first_setup_service_url'
 const SETUP_REVIEW_DONE_KEY = 'codex2api:first_setup_review_done_v1'
 
@@ -60,7 +62,7 @@ const COPY = {
     configuredSecret: '已通过当前管理密钥登录',
     bootstrapHint: `至少 ${MIN_SECRET_LEN} 位，保存后用于登录后台和调用 /api/admin/*。`,
     tokenLabel: '初始化令牌',
-    tokenHint: '服务启动时打印在日志中，用于确认操作者是部署者本人；重启服务会生成新令牌。Docker 部署可执行：',
+    tokenHint: '服务启动时打印在日志中，用于确认操作者是部署者本人；重启服务会生成新令牌。请查看服务日志并搜索 bootstrap token。Docker 部署可执行：',
     secretLabel: '管理密钥',
     confirmLabel: '再次输入确认',
     dataTitle: '数据目录',
@@ -102,6 +104,7 @@ const COPY = {
     loginSubtitle: '请输入管理密钥登录',
     loginPlaceholder: '请输入 ADMIN_SECRET',
     loginError: '密钥错误，请重新输入',
+    loginThrottled: '尝试次数过多，已临时锁定，请约 {{minutes}} 分钟后再试',
     loginButton: '登录',
     loadingText: '加载中…',
   },
@@ -118,7 +121,7 @@ const COPY = {
     configuredSecret: 'Signed in with the current admin secret',
     bootstrapHint: `At least ${MIN_SECRET_LEN} characters. Used for dashboard login and /api/admin/* calls.`,
     tokenLabel: 'Bootstrap token',
-    tokenHint: 'Printed in the service log at startup to prove you operate this deployment; restarting the service issues a new one. For Docker deployments run:',
+    tokenHint: 'Printed in the service log at startup to prove you operate this deployment; restarting the service issues a new one. Check the service log for bootstrap token. For Docker deployments run:',
     secretLabel: 'Admin secret',
     confirmLabel: 'Confirm secret',
     dataTitle: 'Data paths',
@@ -160,6 +163,7 @@ const COPY = {
     loginSubtitle: 'Enter your admin secret to sign in',
     loginPlaceholder: 'Enter ADMIN_SECRET',
     loginError: 'Invalid secret, please try again',
+    loginThrottled: 'Too many attempts. Try again in about {{minutes}} min',
     loginButton: 'Sign in',
     loadingText: 'Loading…',
   },
@@ -223,10 +227,17 @@ function setupMonitoringDetail(
 function AuthBackdrop() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,color-mix(in_oklab,var(--color-primary)_14%,transparent),transparent_55%)]" />
-      <div className="absolute -left-24 top-16 size-72 rounded-full bg-primary/10 blur-3xl" />
-      <div className="absolute -right-16 bottom-10 size-80 rounded-full bg-[hsl(var(--info))]/10 blur-3xl" />
-      <div className="absolute inset-0 opacity-[0.035] [background-image:linear-gradient(var(--color-foreground)_1px,transparent_1px),linear-gradient(90deg,var(--color-foreground)_1px,transparent_1px)] [background-size:28px_28px]" />
+      <div className="absolute inset-0 bg-[radial-gradient(900px_480px_at_18%_8%,color-mix(in_oklab,var(--color-primary)_16%,transparent),transparent_70%),radial-gradient(800px_440px_at_92%_92%,color-mix(in_oklab,hsl(var(--info))_12%,transparent),transparent_70%)]" />
+      <svg className="absolute inset-0 size-full text-primary" preserveAspectRatio="xMidYMid slice" viewBox="0 0 1200 800">
+        <g fill="none" stroke="currentColor" strokeOpacity="0.14">
+          <circle cx="220" cy="140" r="110" />
+          <circle cx="220" cy="140" r="220" />
+          <circle cx="220" cy="140" r="350" />
+          <circle cx="1040" cy="700" r="90" />
+          <circle cx="1040" cy="700" r="200" />
+          <circle cx="1040" cy="700" r="330" />
+        </g>
+      </svg>
     </div>
   )
 }
@@ -234,12 +245,10 @@ function AuthBackdrop() {
 function PanelShell({
   children,
   siteName,
-  logoSrc,
   subtitle,
 }: {
   children: ReactNode
   siteName: string
-  logoSrc: string
   subtitle: string
 }) {
   return (
@@ -247,9 +256,7 @@ function PanelShell({
       <AuthBackdrop />
       <div className="relative z-10 w-full max-w-[920px]">
         <div className="mb-7 text-center">
-          <div className="mx-auto mb-4 inline-flex rounded-2xl bg-card/80 p-1.5 shadow-sm ring-1 ring-border/80 backdrop-blur-sm">
-            <img src={logoSrc} alt={siteName} className="size-14 rounded-xl object-cover" />
-          </div>
+          <BrandMark size={72} mode="loop" className="mx-auto mb-3" />
           <h1 className="text-[28px] font-bold tracking-tight text-foreground">{siteName}</h1>
           <p className="mx-auto mt-1.5 max-w-lg text-sm leading-relaxed text-muted-foreground">{subtitle}</p>
         </div>
@@ -316,10 +323,15 @@ export default function AuthGate({ children }: PropsWithChildren) {
   const { t, i18n } = useTranslation()
   const lang = (i18n.language || 'zh').startsWith('zh') ? 'zh' : 'en'
   const copy = COPY[lang]
-  const { siteName, siteLogo } = useBranding()
-  const logoSrc = siteLogo || DEFAULT_SITE_LOGO
+  const { siteName } = useBranding()
 
   const [status, setStatus] = useState<AuthStatus>('checking')
+  const [session, setSessionState] = useState<AdminSession | null>(null)
+  const sessionRef = useRef<AdminSession | null>(null)
+  const setSession = useCallback((next: AdminSession | null) => {
+    sessionRef.current = next
+    setSessionState(next)
+  }, [])
   const [inputKey, setInputKey] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -368,9 +380,13 @@ export default function AuthGate({ children }: PropsWithChildren) {
         }
       }
 
-      const headers: Record<string, string> = {}
       const key = getAdminKey()
-      if (key) headers['X-Admin-Key'] = key
+      if (!key) {
+        // 没有密钥时无需打服务端：直接停在登录页，也不会白白消耗失败次数。
+        setStatus('need_login')
+        return
+      }
+      const headers: Record<string, string> = { 'X-Admin-Key': key }
       const res = await fetch('/api/admin/health', { headers })
       if (res.status === 401) {
         // 仅 401 才代表密钥确实无效，此时才清除并要求重新登录
@@ -388,7 +404,11 @@ export default function AuthGate({ children }: PropsWithChildren) {
           setStatus('need_login')
         }
       } else {
-        if (key && shouldShowSetupReview()) {
+        const me = await fetchAdminSession(key)
+        if (me) setSession(me)
+        const viewer = (me ?? sessionRef.current)?.role === 'viewer'
+        // Read-only keys never see the first-run review: it writes settings.
+        if (key && !viewer && shouldShowSetupReview()) {
           await loadSetupReview()
         } else {
           setStatus('authenticated')
@@ -403,7 +423,7 @@ export default function AuthGate({ children }: PropsWithChildren) {
         setStatus('need_login')
       }
     }
-  }, [loadSetupReview])
+  }, [loadSetupReview, setSession])
 
   useEffect(() => {
     void checkAuth()
@@ -530,13 +550,18 @@ export default function AuthGate({ children }: PropsWithChildren) {
       })
       if (res.status === 401) {
         setError(copy.loginError)
+      } else if (res.status === 429) {
+        const retry = Number(res.headers.get('Retry-After')) || 0
+        setError(interpolate(copy.loginThrottled, { minutes: Math.max(1, Math.ceil(retry / 60)) }))
       } else if (res.status === 503) {
         setStatus('need_bootstrap')
       } else if (!res.ok) {
         setError(copy.loginError)
       } else {
         setAdminKey(inputKey.trim())
-        if (shouldShowSetupReview()) {
+        const me = await fetchAdminSession(inputKey.trim())
+        setSession(me)
+        if (me?.role !== 'viewer' && shouldShowSetupReview()) {
           await loadSetupReview()
         } else {
           setStatus('authenticated')
@@ -655,7 +680,7 @@ export default function AuthGate({ children }: PropsWithChildren) {
     ].filter(Boolean).join(' · ')
 
     return (
-      <PanelShell siteName={siteName} logoSrc={logoSrc} subtitle={copy.bootstrapSubtitle}>
+      <PanelShell siteName={siteName} subtitle={copy.bootstrapSubtitle}>
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)]">
           <div className="space-y-4">
             <SetupCard icon={<Server className="size-4" />} title={copy.serviceTitle}>
@@ -784,7 +809,7 @@ export default function AuthGate({ children }: PropsWithChildren) {
     ].filter(Boolean).join(' · ')
 
     return (
-      <PanelShell siteName={siteName} logoSrc={logoSrc} subtitle={copy.reviewSubtitle}>
+      <PanelShell siteName={siteName} subtitle={copy.reviewSubtitle}>
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)]">
           <div className="space-y-4">
             <SetupCard icon={<Server className="size-4" />} title={copy.serviceTitle}>
@@ -867,7 +892,7 @@ export default function AuthGate({ children }: PropsWithChildren) {
 
   if (status === 'setup_complete') {
     return (
-      <PanelShell siteName={siteName} logoSrc={logoSrc} subtitle={copy.completeSubtitle}>
+      <PanelShell siteName={siteName} subtitle={copy.completeSubtitle}>
         <div className="mx-auto max-w-[640px] rounded-2xl border border-border/80 bg-card/90 p-5 shadow-lg backdrop-blur-sm sm:p-6">
           <div className="mb-4 flex items-center gap-2.5">
             <div className="flex size-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20 dark:text-emerald-400">
@@ -901,14 +926,12 @@ export default function AuthGate({ children }: PropsWithChildren) {
         <AuthBackdrop />
         <div className="relative z-10 mx-auto w-full max-w-[420px]">
           <div className="mb-7 text-center">
-            <div className="mx-auto mb-4 inline-flex rounded-2xl bg-card/80 p-1.5 shadow-sm ring-1 ring-border/80 backdrop-blur-sm">
-              <img src={logoSrc} alt={siteName} className="size-14 rounded-xl object-cover" />
-            </div>
+            <BrandMark size={72} mode="loop" className="mx-auto mb-3" />
             <h1 className="text-[28px] font-bold tracking-tight text-foreground">{siteName}</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">{copy.loginSubtitle}</p>
           </div>
 
-          <div className="rounded-2xl border border-border/80 bg-card/90 p-5 shadow-lg backdrop-blur-sm sm:p-6">
+          <div className="rounded-xl border border-border/80 bg-card/90 p-5 shadow-xl backdrop-blur-sm sm:p-7">
             <div className="mb-5 flex items-center gap-2.5">
               <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15">
                 <KeyRound className="size-4" />
@@ -952,5 +975,5 @@ export default function AuthGate({ children }: PropsWithChildren) {
     )
   }
 
-  return <>{children}</>
+  return <AdminSessionProvider session={session}>{children}</AdminSessionProvider>
 }

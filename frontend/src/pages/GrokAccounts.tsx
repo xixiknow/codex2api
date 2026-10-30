@@ -112,6 +112,7 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "../hooks/useToast";
 import { useConfirmDialog } from "../hooks/useConfirmDialog";
+import { useReadOnly, WriteOnly } from "../hooks/useAdminSession";
 import { useOperationProgress } from "../hooks/useOperationProgress";
 import {
   DEFAULT_PAGE_SIZE_OPTIONS,
@@ -458,6 +459,7 @@ function GrokAccounts({
   const { t } = useTranslation();
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const readOnly = useReadOnly();
   // 与 Codex 账号页一致：用系统自定义确认弹窗，不用 window.confirm。
   const { confirm, confirmDialog } = useConfirmDialog();
   // 批量测试的右上角进度浮层，与 Codex 账号页共用同一实现。
@@ -1066,7 +1068,8 @@ function GrokAccounts({
 
   // Grok 控制面状态可能包含目录与能力明细，列表接口保持轻量；只有打开详情时才按需读取。
   useEffect(() => {
-    if (detailAccountId == null) {
+    // 只读 viewer 无权读取 Grok 控制面状态(GET .../grok/state 返回 403),不发请求。
+    if (detailAccountId == null || readOnly) {
       setDetailGrokState(null);
       setDetailGrokStateError(null);
       setDetailGrokStateLoading(false);
@@ -1087,7 +1090,7 @@ function GrokAccounts({
         if (!controller.signal.aborted) setDetailGrokStateLoading(false);
       });
     return () => controller.abort();
-  }, [detailAccountId]);
+  }, [detailAccountId, readOnly]);
 
   const syncDetailGrokState = useCallback(async () => {
     if (detailAccountId == null || detailGrokAction) return;
@@ -1778,7 +1781,7 @@ function GrokAccounts({
     try {
       const { blob, filename } = await api.exportGrokAccounts(ids);
     const count = ids ? ids.length : totalAccounts;
-      const fallback = `codex2api-grok-${new Date()
+      const fallback = `tidepool-grok-${new Date()
         .toISOString()
         .replace(/[:.]/g, "-")
         .slice(0, 19)}-${count}.${blob.type.includes("zip") ? "zip" : "json"}`;
@@ -2096,6 +2099,7 @@ function GrokAccounts({
           titleAdornment={headerSlot}
           actions={
             <div className="flex flex-wrap items-center gap-1.5">
+              <WriteOnly>
               <Button size="sm" onClick={() => setShowAdd(true)}>
                 <Plus className="size-3.5" />
                 {t("grok.addAccount")}
@@ -2189,6 +2193,7 @@ function GrokAccounts({
                 <Trash2 className="size-3.5" />
                 <span className="hidden sm:inline">{t("grok.cleanError")}</span>
               </Button>
+              </WriteOnly>
             </div>
           }
         />
@@ -2441,7 +2446,7 @@ function GrokAccounts({
           </div>
         </div>
 
-        {selected.size > 0 && (
+        {selected.size > 0 && !readOnly && (
           <div className="sticky top-2 z-20 mb-3 flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-card/95 px-3 py-2 text-sm shadow-lg backdrop-blur-sm max-lg:flex-col max-lg:items-stretch">
             <span className="font-semibold text-primary">
               {t("common.selected", { count: selected.size })}
@@ -2567,6 +2572,7 @@ function GrokAccounts({
           }
           action={
             accounts.length === 0 ? (
+              readOnly ? null : (
               <div className="flex flex-wrap items-center justify-center gap-1.5">
                 <Button onClick={() => setShowAdd(true)}>
                   <Plus className="size-3.5" />
@@ -2592,6 +2598,7 @@ function GrokAccounts({
                     : t("grok.fileImportBtn")}
                 </Button>
               </div>
+              )
             ) : (
               <Button
                 variant="outline"
@@ -2614,6 +2621,7 @@ function GrokAccounts({
               <Table className="[&_td]:px-2.5 [&_th]:px-2.5 [&_td]:py-3">
                 <TableHeader>
                   <TableRow>
+                    {!readOnly ? (
                     <TableHead className="w-9">
                       <input
                         ref={selectAllRef}
@@ -2625,6 +2633,7 @@ function GrokAccounts({
                         onChange={toggleSelectAll}
                       />
                     </TableHead>
+                    ) : null}
                     {visibleColumns.sequence ? (
                       <TableHead className="w-10 text-[13px] font-semibold">
                         {t("accounts.sequence")}
@@ -3394,7 +3403,7 @@ function GrokAccounts({
           ) : null
         }
         providerSlot={
-          detailAccount ? (
+          detailAccount && !readOnly ? (
             <GrokStateDetail
               account={detailAccount}
               state={detailGrokState}
@@ -4125,6 +4134,7 @@ function GrokAccountCard({
   onUsageRefreshed: () => void;
 }) {
   const { t } = useTranslation();
+  const readOnly = useReadOnly();
   const disabled = account.enabled === false;
   const isOAuth = account.grok_auth_kind === "oauth";
   const models = grokDisplayModels(account);
@@ -4158,6 +4168,7 @@ function GrokAccountCard({
       <div className="flex flex-1 flex-col gap-3.5 p-4 sm:p-5">
         {/* Header: identity + status + actions */}
         <div className="flex min-w-0 items-start gap-3">
+          {!readOnly ? (
           <input
             type="checkbox"
             className="mt-1 size-4 shrink-0 cursor-pointer rounded border-border accent-primary"
@@ -4166,6 +4177,7 @@ function GrokAccountCard({
             onChange={onToggleSelect}
             onClick={(event) => event.stopPropagation()}
           />
+          ) : null}
           <ModelLogo
             model="grok"
             size={44}
@@ -4251,13 +4263,13 @@ function GrokAccountCard({
           <GrokPlanBadge account={account} compact />
           <GrokGroupChips
             groups={groups}
-            onClick={onEditGroups}
+            onClick={readOnly ? undefined : onEditGroups}
             emptyLabel={t("accounts.groupQuickEdit")}
           />
           <AccountProxyBadge
             account={account}
             ctx={proxyCtx}
-            onClick={onEditProxy}
+            onClick={readOnly ? undefined : onEditProxy}
           />
         </div>
 
@@ -4345,8 +4357,24 @@ function GrokAccountActions({
   onDelete: () => void;
 }) {
   const { t } = useTranslation();
+  const readOnly = useReadOnly();
   const disabled = account.enabled === false;
   const isOAuth = account.grok_auth_kind === "oauth";
+
+  // 只读 viewer 只保留查看用量明细。
+  if (readOnly) {
+    return (
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        className="size-8"
+        title={t("accounts.usageDetail")}
+        onClick={onUsage}
+      >
+        <BarChart3 className="size-3.5" />
+      </Button>
+    );
+  }
 
   return (
     <>
@@ -4480,6 +4508,7 @@ function GrokAccountTableRow({
   onUsageRefreshed: () => void;
 }) {
   const { t } = useTranslation();
+  const readOnly = useReadOnly();
   const disabled = account.enabled === false;
   const isOAuth = account.grok_auth_kind === "oauth";
   const models = grokDisplayModels(account);
@@ -4509,6 +4538,7 @@ function GrokAccountTableRow({
         onOpenDetail();
       }}
     >
+      {!readOnly ? (
       <TableCell className="w-9">
         <input
           type="checkbox"
@@ -4519,6 +4549,7 @@ function GrokAccountTableRow({
           onClick={(event) => event.stopPropagation()}
         />
       </TableCell>
+      ) : null}
       {visibleColumns.sequence ? (
         <TableCell className="font-mono text-[13px] tabular-nums text-muted-foreground" title={`ID ${account.id}`}>
           {sequence}
@@ -4568,7 +4599,7 @@ function GrokAccountTableRow({
             <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1">
                 <GrokGroupChips
                   groups={groups}
-                  onClick={onEditGroups}
+                  onClick={readOnly ? undefined : onEditGroups}
                   emptyLabel={t("accounts.groupQuickEdit")}
                 />
               </div>
@@ -4593,7 +4624,7 @@ function GrokAccountTableRow({
           <AccountProxyBadge
             account={account}
             ctx={proxyCtx}
-            onClick={onEditProxy}
+            onClick={readOnly ? undefined : onEditProxy}
           />
         </TableCell>
       ) : null}
@@ -5060,6 +5091,7 @@ function GrokUsageCell({
 }) {
   const { t } = useTranslation();
   const { showToast } = useToast();
+  const readOnly = useReadOnly();
   const [refreshing, setRefreshing] = useState(false);
 
   const handleRefreshUsage = async () => {
@@ -5153,7 +5185,7 @@ function GrokUsageCell({
   const freeQuotaExhaustedNoDetail =
     !freeQuotaBar && isFreePlan && usageLimited;
 
-  const refreshButton = (
+  const refreshButton = readOnly ? null : (
     <button
       type="button"
       onClick={() => void handleRefreshUsage()}

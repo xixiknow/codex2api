@@ -1,10 +1,13 @@
 import { type CSSProperties, type PropsWithChildren, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Users, Activity, Settings, Server, Languages, Globe, BookOpen, KeyRound, Image as ImageIcon, ShieldAlert, ExternalLink, ChevronLeft, Palette, Sun, Moon, LogOut, Download, Loader2, RefreshCw, Menu, X, CircleDollarSign, Braces, FlaskConical, RadioTower } from 'lucide-react'
+import { LayoutDashboard, Users, Activity, Settings, Server, Languages, Globe, KeyRound, Image as ImageIcon, ShieldAlert, ExternalLink, ChevronLeft, Palette, Sun, Moon, LogOut, Download, Loader2, RefreshCw, Menu, X, CircleDollarSign, Braces, FlaskConical, RadioTower, Eye } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { api, resetAdminAuthState } from '../api'
-import { DEFAULT_SITE_LOGO, isBrandingVideo, useBranding } from '../branding'
+import { isBrandingVideo, useBranding } from '../branding'
+import { BrandMark } from './BrandMark'
+import { useAdminSession } from '../hooks/useAdminSession'
+import { VIEWER_NAV_PATHS } from '../lib/viewerAccess'
 import { useVersionCheck } from '../hooks/useVersionCheck'
 import { buildVersionLabel } from '../lib/buildVersion'
 import { useTheme } from '../hooks/useTheme'
@@ -14,6 +17,7 @@ import SecurityBanner from './SecurityBanner'
 import GrokImportProgressHost from './GrokImportProgressHost'
 import { cn } from '@/lib/utils'
 import { CinematicThemeSwitcher } from '@/components/ui/cinematic-theme-switcher'
+import { PROJECT_REPO_URL } from '@/lib/project'
 
 type NavDef = {
   to: string
@@ -39,26 +43,34 @@ const navDefs: NavDef[] = [
   { to: '/payload-rules/editor', labelKey: 'nav.payloadRules', icon: <Braces className="size-[18px]" />, activePrefix: '/payload-rules' },
   { to: '/theme', labelKey: 'nav.theme', icon: <Palette className="size-[18px]" /> },
   { to: '/settings', labelKey: 'nav.settings', icon: <Settings className="size-[18px]" /> },
-  { to: '/docs', labelKey: 'nav2.docs', icon: <BookOpen className="size-[18px]" /> },
 ]
 
 // Explicit mobile primary order: dashboard → accounts → usage → ops.
 const MOBILE_PRIMARY_PATHS = ['/', '/accounts', '/usage', '/ops/overview'] as const
 const mobilePrimaryPathSet = new Set<string>(MOBILE_PRIMARY_PATHS)
-const mobilePrimaryNav = MOBILE_PRIMARY_PATHS
-  .map((path) => navDefs.find((item) => item.to === path))
-  .filter((item): item is NavDef => Boolean(item))
-const mobileMoreNav = navDefs.filter((item) => !mobilePrimaryPathSet.has(item.to))
+function buildNav(readOnly: boolean) {
+  const items = readOnly ? navDefs.filter((item) => VIEWER_NAV_PATHS.has(item.to)) : navDefs
+  return {
+    items,
+    mobilePrimary: MOBILE_PRIMARY_PATHS
+      .map((path) => items.find((item) => item.to === path))
+      .filter((item): item is NavDef => Boolean(item)),
+    mobileMore: items.filter((item) => !mobilePrimaryPathSet.has(item.to)),
+  }
+}
+const ADMIN_NAV = buildNav(false)
+const VIEWER_NAV = buildNav(true)
 
 export default function Layout({ children }: PropsWithChildren) {
   const location = useLocation()
   const { t, i18n } = useTranslation()
   const { currentVersion, frontendVersion, versionMismatch, hasUpdate, latestVersion, updateInfo, refreshVersion } = useVersionCheck(location.pathname)
-  const { siteName, siteLogo, backgroundImage, backgroundOpacity, backgroundBlur, backgroundGlassOpacity, backgroundGlassBlur } = useBranding()
+  const { readOnly, name: viewerName } = useAdminSession()
+  const { items: visibleNav, mobilePrimary: mobilePrimaryNav, mobileMore: mobileMoreNav } = readOnly ? VIEWER_NAV : ADMIN_NAV
+  const { siteName, backgroundImage, backgroundOpacity, backgroundBlur, backgroundGlassOpacity, backgroundGlassBlur } = useBranding()
   const { theme, toggle } = useTheme()
   const { showToast } = useToast()
   const [spinning, setSpinning] = useState(false)
-  const logoSrc = siteLogo || DEFAULT_SITE_LOGO
   const [showVersionPopover, setShowVersionPopover] = useState(false)
   const [updatingVersion, setUpdatingVersion] = useState(false)
   const [restartingAfterUpdate, setRestartingAfterUpdate] = useState(false)
@@ -90,7 +102,7 @@ export default function Layout({ children }: PropsWithChildren) {
   const versionButtonRef = useRef<HTMLButtonElement | null>(null)
   const [versionPopoverPos, setVersionPopoverPos] = useState<{ top: number; left: number } | null>(null)
   const releaseURL = updateInfo?.release_url || (latestVersion
-    ? `https://github.com/james-6-23/codex2api/releases/tag/${encodeURIComponent(latestVersion)}`
+    ? `${PROJECT_REPO_URL}/releases/tag/${encodeURIComponent(latestVersion)}`
     : undefined)
   const canApplyUpdate = hasUpdate && updateInfo?.has_update === true && updateInfo.supported !== false
   const updateUnavailableReason = updateInfo?.unsupported_reason
@@ -301,7 +313,7 @@ export default function Layout({ children }: PropsWithChildren) {
 
   const mobileMoreActive = useMemo(
     () => mobileMoreNav.some((item) => isNavActive(item)),
-    [isNavActive],
+    [isNavActive, mobileMoreNav],
   )
 
   // Apple HIG-style easing for sidebar choreography:
@@ -361,9 +373,9 @@ export default function Layout({ children }: PropsWithChildren) {
         <aside data-slot="admin-sidebar" className="sticky top-0 self-start h-dvh overflow-hidden border-r border-border bg-[hsl(var(--sidebar-background))] max-lg:hidden">
           <div className={`flex flex-col h-full ${sidebarCollapsed ? 'px-2' : 'px-4'} pt-5 pb-4 transition-[padding] ${containerEase}`}>
             {/* Brand */}
-            <div className={`pb-4 border-b border-border ${sidebarCollapsed ? 'flex justify-center' : ''}`}>
+            <div data-logo-host className={`pb-4 border-b border-border ${sidebarCollapsed ? 'flex justify-center' : ''}`}>
               <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center' : ''}`}>
-                <img src={logoSrc} alt={siteName} className="size-10 rounded-lg object-cover shadow-sm shrink-0" />
+                <BrandMark size={40} mode="hover" />
                 <div
                   aria-hidden={sidebarCollapsed}
                   className={`min-w-0 overflow-hidden transition-[max-width] ${containerEase} ${
@@ -438,7 +450,7 @@ export default function Layout({ children }: PropsWithChildren) {
                               {updateInfo.warning}
                             </div>
                           )}
-                          {hasUpdate && (
+                          {hasUpdate && !readOnly && (
                             <button
                               type="button"
                               className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
@@ -515,7 +527,7 @@ export default function Layout({ children }: PropsWithChildren) {
               >
                 {t('nav.console')}
               </span>
-              {navDefs.map((item) => {
+              {visibleNav.map((item) => {
                 const active = isNavActive(item)
                 const label = t(item.labelKey)
                 return (
@@ -525,23 +537,14 @@ export default function Layout({ children }: PropsWithChildren) {
                     end={item.end}
                     title={sidebarCollapsed ? label : undefined}
                     className={cn(
-                      'relative flex min-h-10 items-center rounded-xl border text-[14px] font-semibold transition-[background-color,color,border-color,padding,gap]',
+                      'relative flex min-h-10 items-center rounded-lg border text-[14px] font-medium transition-[background-color,color,border-color,padding,gap]',
                       containerEase,
                       sidebarCollapsed ? 'justify-center px-2 py-2' : 'gap-2.5 px-3 py-2',
                       active
-                        ? 'border-primary/20 bg-primary/10 text-primary'
-                        : 'border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                        ? 'border-primary/15 bg-primary/[0.08] text-foreground shadow-xs [&>svg]:text-primary'
+                        : 'border-transparent text-muted-foreground hover:bg-muted/70 hover:text-foreground',
                     )}
                   >
-                    {active ? (
-                      <span
-                        aria-hidden
-                        className={cn(
-                          'absolute top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-primary',
-                          sidebarCollapsed ? 'left-1' : 'left-1.5',
-                        )}
-                      />
-                    ) : null}
                     {item.icon}
                     <span
                       className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] ${textEase} ${textRevealDelay} ${
@@ -563,16 +566,31 @@ export default function Layout({ children }: PropsWithChildren) {
                   : 'flex items-center justify-between gap-2'
               }`}
             >
-              <span
-                aria-hidden={sidebarCollapsed}
-                className={`inline-flex items-center gap-1.5 overflow-hidden rounded-md border border-emerald-500/16 bg-[hsl(var(--success-bg))] text-[11px] font-bold text-[hsl(var(--success))] shrink-0 whitespace-nowrap transition-[max-width,opacity,padding] ${textEase} ${textRevealDelay} ${
-                  sidebarCollapsed ? 'pointer-events-none max-w-0 px-0 opacity-0' : 'max-w-[120px] px-2 py-1 opacity-100'
-                }`}
-              >
-                <span className="size-2 rounded-full bg-emerald-500 shrink-0" />
-                {t('common.online')}
-              </span>
-              <div className={`flex items-center gap-0.5 ${sidebarCollapsed ? 'flex-col' : ''}`}>
+              {readOnly ? (
+                <span
+                  aria-hidden={sidebarCollapsed}
+                  title={viewerName ? `${t('common.readOnlyBadge')} · ${viewerName}` : t('common.readOnlyBadge')}
+                  className={`inline-flex items-center gap-1.5 overflow-hidden rounded-full bg-[hsl(var(--warning-bg))] text-[11px] font-semibold text-[hsl(var(--warning))] min-w-0 whitespace-nowrap transition-[max-width,opacity,padding] ${textEase} ${textRevealDelay} ${
+                    sidebarCollapsed ? 'pointer-events-none max-w-0 px-0 opacity-0' : 'max-w-[140px] px-2.5 py-1 opacity-100'
+                  }`}
+                >
+                  <Eye className="size-3.5 shrink-0" />
+                  <span className="truncate">
+                    {t('common.readOnlyBadge')}{viewerName ? ` · ${viewerName}` : ''}
+                  </span>
+                </span>
+              ) : (
+                <span
+                  aria-hidden={sidebarCollapsed}
+                  className={`inline-flex items-center gap-1.5 overflow-hidden rounded-md border border-emerald-500/16 bg-[hsl(var(--success-bg))] text-[11px] font-bold text-[hsl(var(--success))] shrink-0 whitespace-nowrap transition-[max-width,opacity,padding] ${textEase} ${textRevealDelay} ${
+                    sidebarCollapsed ? 'pointer-events-none max-w-0 px-0 opacity-0' : 'max-w-[120px] px-2 py-1 opacity-100'
+                  }`}
+                >
+                  <span className="size-2 rounded-full bg-emerald-500 shrink-0" />
+                  {t('common.online')}
+                </span>
+              )}
+              <div className={`flex shrink-0 items-center gap-0.5 ${sidebarCollapsed ? 'flex-col' : ''}`}>
                 {!sidebarCollapsed && <CinematicThemeSwitcher size="mini" />}
                 <button
                   onClick={toggleLang}
@@ -581,15 +599,6 @@ export default function Layout({ children }: PropsWithChildren) {
                 >
                   <Languages className="size-[18px]" />
                 </button>
-                <a
-                  href="https://github.com/james-6-23/codex2api"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center size-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors duration-150"
-                  title="GitHub"
-                >
-                  <svg className="size-[18px]" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
-                </a>
                 {sidebarCollapsed && (
                   <button
                     onClick={handleThemeToggle}
@@ -634,10 +643,16 @@ export default function Layout({ children }: PropsWithChildren) {
               >
                 <Menu className="size-5" />
               </button>
-              <img src={logoSrc} alt={siteName} className="size-8 rounded-[10px] object-cover shrink-0" />
+              <BrandMark size={32} mode="hover" />
               <strong className="min-w-0 flex-1 truncate text-base font-semibold" title={siteName}>
                 {siteName}
               </strong>
+              {readOnly && (
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[hsl(var(--warning-bg))] px-2 py-0.5 text-[11px] font-semibold text-[hsl(var(--warning))]">
+                  <Eye className="size-3" />
+                  {t('common.readOnlyBadge')}
+                </span>
+              )}
               <button
                 type="button"
                 aria-expanded={showVersionPopover}

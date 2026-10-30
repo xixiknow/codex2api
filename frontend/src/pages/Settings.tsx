@@ -5,6 +5,7 @@ import { api, resetAdminAuthState, setAdminKey } from '../api'
 import { formatBeijingTime } from '../utils/time'
 import DisplayTimezoneSelect from '../components/DisplayTimezoneSelect'
 import PageHeader from '../components/PageHeader'
+import ViewerKeysPanel from '../components/ViewerKeysPanel'
 import CodexClientVersionsPanel from '../components/CodexClientVersionsPanel'
 import StateShell from '../components/StateShell'
 import { useDataLoader } from '../hooks/useDataLoader'
@@ -39,7 +40,7 @@ import {
   type ResponseCacheBudgetMiB,
   type ResponseCacheBudgetValidationError,
 } from '../lib/responseCacheMetrics'
-import { DEFAULT_SITE_LOGO, isBrandingVideo, sanitizeBrandingImage, sanitizeBrandingLogo, useBranding } from '../branding'
+import { DEFAULT_SITE_LOGO, DEFAULT_SITE_NAME, isBrandingVideo, normalizeSiteName, sanitizeBrandingImage, sanitizeBrandingLogo, useBranding } from '../branding'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -2661,7 +2662,7 @@ export default function Settings() {
     }
   }, [])
   const [settingsForm, setSettingsForm] = useState<SystemSettings>({
-    site_name: 'CodexProxy',
+    site_name: DEFAULT_SITE_NAME,
     site_logo: '',
     background_image: '',
     background_opacity: 18,
@@ -2926,7 +2927,11 @@ export default function Settings() {
 
   const commitSettingsForm = useCallback(
     (next: SystemSettings) => {
-      const normalized = normalizeLazySettingsForm(next)
+      const lazyNormalized = normalizeLazySettingsForm(next)
+      // 旧版本数据库默认站点名按未自定义处理，表单直接显示当前默认名称。
+      const normalized = next.site_name && normalizeSiteName(next.site_name) !== next.site_name.trim()
+        ? { ...lazyNormalized, site_name: DEFAULT_SITE_NAME }
+        : lazyNormalized
       settingsFormRef.current = normalized
       setSettingsForm(normalized)
       return normalized
@@ -5548,7 +5553,7 @@ export default function Settings() {
                         <Input
                           value={settingsForm.site_name}
                           maxLength={80}
-                          placeholder="CodexProxy"
+                          placeholder={DEFAULT_SITE_NAME}
                           onChange={(e: ChangeEvent<HTMLInputElement>) => setSettingsForm(f => ({ ...f, site_name: e.target.value }))}
                         />
                       </SettingField>
@@ -5559,7 +5564,7 @@ export default function Settings() {
                     <SettingField label={t('settings.siteLogo')} description={t('settings.siteLogoDesc')}>
                       <div className="flex items-center gap-3">
                         <div className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-background shadow-sm">
-                          <img src={siteLogoPreview} alt={settingsForm.site_name || 'CodexProxy'} className="size-full object-cover" />
+                          <img src={siteLogoPreview} alt={settingsForm.site_name || DEFAULT_SITE_NAME} className="size-full object-cover" />
                         </div>
                         <div className="min-w-0 flex-1 space-y-2">
                           <Input
@@ -5655,7 +5660,7 @@ export default function Settings() {
                           </div>
                         )}
                         <div className="space-y-0.5">
-                          <div className="text-xs font-bold leading-none text-foreground">{settingsForm.site_name || 'CodexProxy'}</div>
+                          <div className="text-xs font-bold leading-none text-foreground">{settingsForm.site_name || DEFAULT_SITE_NAME}</div>
                           <div className="text-[10px] text-muted-foreground">毛玻璃预览 Glass Effect</div>
                         </div>
                       </div>
@@ -6414,7 +6419,7 @@ export default function Settings() {
                     </SettingField>
                     <SettingField label={t('settings.resinPlatformName')} description={t('settings.resinPlatformNameDesc')}>
                       <Input
-                        placeholder="codex2api"
+                        placeholder="tidepool"
                         value={settingsForm.resin_platform_name}
                         onChange={(e: ChangeEvent<HTMLInputElement>) => setSettingsForm(f => ({ ...f, resin_platform_name: e.target.value }))}
                       />
@@ -6632,6 +6637,13 @@ export default function Settings() {
                       </SettingField>
                     </div>
                   </div>
+                </SettingsCard>
+                <SettingsCard
+                  title={t('viewerKeys.title')}
+                  description={t('viewerKeys.desc')}
+                  icon={<Eye className="size-4" />}
+                >
+                  <ViewerKeysPanel />
                 </SettingsCard>
               </SettingsSection>
 

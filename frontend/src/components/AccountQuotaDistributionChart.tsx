@@ -15,6 +15,7 @@ import {
 import { BarChart3, RefreshCw } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { api } from '../api'
+import { useReadOnly } from '../hooks/useAdminSession'
 import { getErrorMessage } from '../utils/error'
 import type { AccountQuotaAnalysis } from '../types'
 
@@ -81,6 +82,7 @@ export default function AccountQuotaDistributionChart({
   showProbe = true,
 }: AccountQuotaDistributionChartProps) {
   const { t } = useTranslation()
+  const readOnly = useReadOnly()
   const [probing, setProbing] = useState(false)
   const sampledRef = useRef(0)
   const pollTimerRef = useRef<number | null>(null)
@@ -196,7 +198,7 @@ export default function AccountQuotaDistributionChart({
               })}
             </p>
           </div>
-          {showProbe ? (
+          {showProbe && !readOnly ? (
             <div className="flex items-center gap-2">
               <button
                 type="button"

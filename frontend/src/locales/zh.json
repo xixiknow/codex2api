@@ -723,6 +723,8 @@
     "capabilityUntested": "未探测"
   },
   "common": {
+    "readOnlyBadge": "只读",
+    "readOnlyDenied": "只读账号无权执行此操作",
     "online": "在线",
     "newVersionAvailable": "新版本 {{version}} 可用",
     "currentVersion": "当前版本：{{version}}",
@@ -764,7 +766,7 @@
     "switchToLight": "切换为浅色模式",
     "themeStyle": "主题风格",
     "theme": {
-      "default": "经典蓝",
+      "default": "清透",
       "glass": "霜玻璃",
       "claude": "Claude 暖杏",
       "chatgpt": "ChatGPT 极简",
@@ -1086,7 +1088,7 @@
     "exportNoAccounts": "没有符合条件的账号可导出",
     "migrateImport": "迁移导入",
     "migrateTitle": "远程迁移导入",
-    "migrateDesc": "从另一个 codex2api 实例导入健康账号。远程实例需在系统设置中开启「允许远程迁移」。",
+    "migrateDesc": "从另一个 {{siteName}} 实例导入健康账号。远程实例需在系统设置中开启「允许远程迁移」。",
     "migrateUrlLabel": "远程实例地址",
     "migrateUrlPlaceholder": "例如 https://other-instance.com",
     "migrateKeyLabel": "远程管理密钥",
@@ -3528,7 +3530,7 @@
       },
       "attachment": {
         "title": "附件内容解析",
-        "description": "通过独立服务提取受支持附件中的文本后再检查。Codex2API 不直接下载任意用户 URL，默认关闭并以影子层记录。",
+        "description": "通过独立服务提取受支持附件中的文本后再检查。{{siteName}} 不直接下载任意用户 URL，默认关闭并以影子层记录。",
         "enabled": "启用附件解析",
         "enabledHint": "只有部署受控的附件解析服务后才开启；关闭时仍可检查附件引用元数据。",
         "allowRemoteURLs": "允许解析远程 URL",
@@ -3602,7 +3604,7 @@
       "scheduleEnabled": "服务启动后按设定间隔自动执行公开情报搜索。",
       "intervalHours": "两次自动情报任务之间至少间隔多少小时。",
       "maxResults": "每次最多保存和发送给分析模型的公开项目数量。",
-      "modelEnabled": "使用当前 Codex2API 号池中的模型，把公开项目归纳为候选拦截规则。",
+      "modelEnabled": "使用当前 {{siteName}} 号池中的模型，把公开项目归纳为候选拦截规则。",
       "model": "执行情报归纳的号池模型名称。",
       "maxModelCalls": "单次情报任务允许消耗的最大号池模型请求数，范围 0—3。",
       "queries": "用户自定义搜索词，每行一个；会与系统内置搜索词合并并去重。"
@@ -3933,7 +3935,7 @@
     "noRulesInCategory": "该分类下暂无规则",
     "newapi": {
       "title": "NewAPI 审计接入",
-      "description": "NewAPI 签名身份只通过 Codex2API Key 一对一绑定接入。绑定只负责身份校验；拦截模式和审核档位统一由 GuardPipeline 管理。",
+      "description": "NewAPI 签名身份只通过 {{siteName}} Key 一对一绑定接入。绑定只负责身份校验；拦截模式和审核档位统一由 GuardPipeline 管理。",
       "clockSkew": "时钟容差（秒）",
       "clockSkewHint": "超过该时间范围的签名会被视为无效。",
       "protocolTitle": "查看签名协议与 NewAPI 配置",
@@ -3941,7 +3943,7 @@
       "newapiEnvExample": "CODEX2API_POLICY_ENABLED=true\nCODEX2API_POLICY_BINDINGS=[{\"platform_id\":\"primary-newapi\",\"target\":\"http://127.0.0.1:18095\",\"codex_key_fingerprint\":\"<Key 的 SHA-256 指纹>\",\"secret\":\"<该 Key 的绑定密钥>\",\"enabled\":true}]\nCODEX2API_POLICY_BAN_AFTER=2\nCODEX2API_POLICY_WINDOW_SECONDS=86400",
       "headersTitle": "NewAPI 请求头与审核档案",
       "headersExample": "X-NewAPI-User-ID: <用户ID>\nX-NewAPI-Client-IP: <真实用户IP>\nX-NewAPI-Request-ID: <唯一请求ID>\nX-NewAPI-Timestamp: <Unix秒>\nX-NewAPI-Method: <HTTP方法>\nX-NewAPI-Path: <实际转发路径>\nX-NewAPI-Body-SHA256: <请求体SHA-256十六进制>\nX-NewAPI-Signature-Version: 1\nX-NewAPI-Signature: <V1身份HMAC-SHA256>\nX-NewAPI-Policy-Meta: <Base64URL审核档案JSON>\nX-NewAPI-Policy-Meta-Signature: <档案HMAC-SHA256>",
-      "signatureHint": "身份请求继续使用稳定的 V1 签名。policy-meta-v1 中的调用方代码必须与当前 Codex2API Key 绑定一致；身份、审核档案、返回决策和事件都使用该绑定密钥验签。NewAPI 传入的模式或档位不会覆盖 GuardPipeline。"
+      "signatureHint": "身份请求继续使用稳定的 V1 签名。policy-meta-v1 中的调用方代码必须与当前 {{siteName}} Key 绑定一致；身份、审核档案、返回决策和事件都使用该绑定密钥验签。NewAPI 传入的模式或档位不会覆盖 GuardPipeline。"
     },
     "intelligence": {
       "title": "联网规则情报更新",
@@ -4173,7 +4175,7 @@
         "b2": "终局拦截分类：指定 category 形成高可信违规判定后进入终局路径。",
         "b3": "用户/IP/会话累计风险：记录已确认的高风险事件并辅助复核，不会仅凭累计分独立封禁。",
         "b4": "SSE/WebSocket 输出扫描：检查模型流式输出；可限制为仅终局规则中断。",
-        "b5": "NewAPI 审计接入：只按 Codex2API Key 一对一绑定校验签名身份与审核档案；未绑定 Key 不接受签名身份。",
+        "b5": "NewAPI 审计接入：只按 {{siteName}} Key 一对一绑定校验签名身份与审核档案；未绑定 Key 不接受签名身份。",
         "b6": "规则情报定时任务：按间隔搜索公开情报并可选生成候选规则。",
         "callout": "多副本部署时累计风险建议使用 Redis 缓存；解码轮数建议 1–2，过高会增加延迟。输出扫描为跨帧检测会保留有限窗口：与预检透传（codex_preflight_sse_passthrough）同时开启时，小体积 metadata 帧仍可能被短暂缓存，首帧速度不一定能恢复；且首个内容事件前一旦提交 HTTP 200，后续上游错误的状态码恢复语义会改变，两者同开需单独验证。"
       },
@@ -4212,11 +4214,11 @@
       },
       "newapi": {
         "title": "NewAPI 审计接入",
-        "p1": "当流量经 NewAPI 转发到 Codex2API 时，NewAPI 对用户 ID、IP、请求 ID、请求体摘要和审核档案签名，Codex2API 验签后再关联审计身份与策略。",
-        "p2": "每个调用方必须使用实际请求对应的 Codex2API Key 绑定；旧版进程级密钥配置不再参与验签。详细字段与签名串见概览中的「NewAPI 审计接入」。",
+        "p1": "当流量经 NewAPI 转发到 {{siteName}} 时，NewAPI 对用户 ID、IP、请求 ID、请求体摘要和审核档案签名，{{siteName}} 验签后再关联审计身份与策略。",
+        "p2": "每个调用方必须使用实际请求对应的 {{siteName}} Key 绑定；旧版进程级密钥配置不再参与验签。详细字段与签名串见概览中的「NewAPI 审计接入」。",
         "b1": "每个绑定使用自己的密钥与启用状态；未绑定 Key 不接受 NewAPI 签名身份。",
         "b2": "审计、警告、账号限制和 IP 限制由 NewAPI 分别配置，不应因启用身份校验而自动开启处罚。",
-        "b3": "NewAPI 侧需签名请求头、校验 Codex2API 返回的签名策略事件，并按自身配置保存审计记录。"
+        "b3": "NewAPI 侧需签名请求头、校验 {{siteName}} 返回的签名策略事件，并按自身配置保存审计记录。"
       },
       "checklist": {
         "title": "上线检查清单",
@@ -4325,7 +4327,7 @@
       "website": "经典网站"
     },
     "themeDesc": {
-      "default": "稳重的蓝色主色，适合通用后台和默认部署。",
+      "default": "清透浅色与长春花蓝主色，留白充足、卡片柔和，是默认外观。",
       "glass": "取自明暗开关的乳白玻璃与内凹高光：半透明卡片、胶囊控件，浅色用琥珀点缀，深色转成夜空银辉。",
       "claude": "暖色纸张质感，弱化冷色并保留清晰层级。",
       "chatgpt": "干净中性的极简风格，适合高频操作页面。",
@@ -4760,7 +4762,7 @@
       "saveFailed": "保存 Antigravity OAuth 设置失败"
     },
     "allowRemoteMigration": "允许远程迁移",
-    "allowRemoteMigrationDesc": "开启后，其他 codex2api 实例可通过导出接口拉取本实例的健康账号。",
+    "allowRemoteMigrationDesc": "开启后，其他 {{siteName}} 实例可通过导出接口拉取本实例的健康账号。",
     "allowRemoteMigrationRequiresSecret": "请先设置管理密钥，未设置密码时不能启用远程迁移。",
     "resinTitle": "Resin 粘性代理池",
     "resinDesc": "配置后 Codex 渠道所有携带账号身份的出站（对话、WS、用量/订阅查询、令牌刷新）全部改经 Resin 反向代理，实现按账号粘性 IP。两个字段都填写后生效，清空任一即禁用。Resin 是整层覆盖：启用期间账号代理、分组代理、代理池与全局代理对 Codex 渠道均不参与出站；Claude / Grok / Antigravity 不受影响。",
@@ -4771,7 +4773,7 @@
     "resinUrl": "Resin 地址",
     "resinUrlDesc": "Resin 代理池地址（含 Token），例如 http://127.0.0.1:2260/my-token",
     "resinPlatformName": "平台标识",
-    "resinPlatformNameDesc": "Resin 中的平台名称，用于区分不同业务。例如 codex2api",
+    "resinPlatformNameDesc": "Resin 中的平台名称，用于区分不同业务。例如 tidepool",
     "security": "安全",
     "adminSecret": "管理密钥",
     "adminSecretPlaceholder": "留空则不启用管理接口鉴权",
@@ -5032,7 +5034,7 @@
     "sectionIndex": "本页分区",
     "visibleChannelsTitle": "供应商显示",
     "visibleChannelsDesc": "选择在仪表盘与账号管理中显示的上游渠道。未选中的渠道会从渠道切换器与统计里隐藏，不影响调度与 API 行为。",
-    "visibleChannelsFallbackHint": "Codex 为兜底渠道，始终显示。",
+    "visibleChannelsFallbackHint": "Claude 为兜底渠道，始终显示。",
     "visibleChannelsSaveFailed": "保存供应商显示失败",
     "apiEndpoints": "API 端点",
     "method": "方法",
@@ -6038,11 +6040,11 @@
   },
   "guide": {
     "title": "使用教程",
-    "description": "了解如何配置和调用 CodexProxy API 端点",
+    "description": "了解如何配置和调用 {{siteName}} API 端点",
     "copy": "复制",
     "copied": "已复制",
     "endpoints": "API 端点",
-    "endpointsDesc": "CodexProxy 提供三个 API 端点，兼容不同的客户端格式。",
+    "endpointsDesc": "{{siteName}} 提供三个 API 端点，兼容不同的客户端格式。",
     "responsesTitle": "POST /v1/responses",
     "responsesDesc": "Codex Responses API 原生端点，直接透传请求到上游。适用于 Codex CLI、OpenAI SDK 等原生客户端。",
     "chatTitle": "POST /v1/chat/completions",
@@ -6396,7 +6398,7 @@
   },
   "apiRef": {
     "title": "API 文档",
-    "description": "CodexProxy API 端点参考文档，包含请求格式和响应示例",
+    "description": "{{siteName}} API 端点参考文档，包含请求格式和响应示例",
     "authSection": "认证",
     "authDesc": "所有 API 请求需要通过以下方式之一传递密钥：",
     "responses": {
@@ -6932,7 +6934,7 @@
     "exportSuccess": "已导出 {{count}} 份 Claude 凭据",
     "exportFailed": "Claude 凭据导出失败",
     "exportConfirmTitle": "导出全部 Claude 凭据?",
-    "exportConfirmDescription": "下载文件包含完整 OAuth 凭据与账号指纹,可直接导入另一套 Codex2API。请妥善保存,不要发送给无权限人员。",
+    "exportConfirmDescription": "下载文件包含完整 OAuth 凭据与账号指纹,可直接导入另一个 {{siteName}} 实例。请妥善保存,不要发送给无权限人员。",
     "exportSelectedConfirmTitle": "导出已选 Claude 凭据?",
     "exportSelectedConfirmDescription": "将导出已选 {{count}} 个账号的完整 OAuth 凭据与账号指纹。",
     "emptyTitle": "还没有 Claude 账号",
@@ -6950,7 +6952,7 @@
     "proxyLabel": "代理(可选)",
     "useProxyPool": "从代理池自动分配一条空闲代理",
     "exchange": "完成登录并添加",
-    "importHint": "粘贴 cmd/claude_login 输出或 Codex2API 导出的 JSON 凭据(OAuth 可只给 refresh_token;auth_kind=setup_token 只需 access_token),支持数组批量;多账号 ZIP 请先解压后逐个导入。",
+    "importHint": "粘贴 cmd/claude_login 输出或 {{siteName}} 导出的 JSON 凭据(OAuth 可只给 refresh_token;auth_kind=setup_token 只需 access_token),支持数组批量;多账号 ZIP 请先解压后逐个导入。",
     "importPlaceholder": "{ \"access_token\": \"...\", \"refresh_token\": \"sk-ant-ort01-...\" }",
     "import": "导入并添加",
     "added": "已添加 Claude 账号",
@@ -7273,5 +7275,27 @@
     "clearDone": "已清除 {{cleared}} 个账号的配额事实",
     "clearPartial": "已清除 {{cleared}} 个账号的配额事实，{{failed}} 个失败",
     "clearFailed": "清除配额事实失败：{{error}}"
+  },
+  "viewerKeys": {
+    "title": "只读访问密钥",
+    "desc": "发给需要查看号池与用量、但不能做任何操作的人",
+    "intro": "持有只读密钥的人在登录页输入密钥后，只能查看仪表盘、号池（邮箱部分打码）和使用统计，无法执行任何修改；令牌、导出、代理凭据和系统密钥永远不会下发。每个人单独发一个，便于随时吊销。",
+    "namePlaceholder": "备注名，如：运营小王",
+    "create": "创建只读密钥",
+    "empty": "还没有只读密钥",
+    "createdAt": "创建于",
+    "lastUsed": "最近使用",
+    "never": "从未",
+    "revoke": "吊销",
+    "revokeTitle": "吊销只读密钥？",
+    "revokeDesc": "「{{name}}」将立即失去访问权限，此操作不可撤销。",
+    "revoked": "已吊销",
+    "revokedBadge": "已吊销",
+    "createdTitle": "只读密钥已创建：{{name}}",
+    "createdDesc": "请立即复制并安全地发给对方。关闭后将无法再次查看完整密钥。",
+    "copy": "复制",
+    "copied": "已复制",
+    "copyFailed": "复制失败，请手动选择文本复制",
+    "saved": "我已保存"
   }
 }

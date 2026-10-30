@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { api } from '../api'
+import { api, isAdminReadOnly } from '../api'
 import type { SystemUpdateInfo } from '../types'
 import { hasRemoteUpdate, normalizeVersion, resolveBuildVersions, versionLabel } from '../lib/versionCheck'
 
@@ -70,6 +70,11 @@ async function fetchUpdateInfo(forceNetwork = false): Promise<{ remote: RemoteRe
     if (cached) return { remote: cached, info: null }
   }
 
+  // 只读访问无权查询更新（会触发对外请求），只用缓存。
+  if (isAdminReadOnly()) {
+    const cached = readCachedRemoteRelease(true)
+    return cached ? { remote: cached, info: null } : null
+  }
   try {
     const info = await api.getSystemUpdate()
     const remote = remoteReleaseFromInfo(info)

@@ -187,6 +187,28 @@ export function resetAdminAuthState() {
   window.dispatchEvent(new Event(ADMIN_AUTH_REQUIRED_EVENT))
 }
 
+export type AdminViewerKey = {
+  id: number
+  name: string
+  key_prefix: string
+  created_at: string
+  last_used_at?: string | null
+  revoked_at?: string | null
+  revoked?: boolean
+}
+
+// 只读访问(viewer 密钥)时由 AdminSessionProvider 打开。后端会拒绝所有写操作,
+// 这里只用于跳过 viewer 无权读取的辅助数据(如代理池),避免页面报错。
+let adminReadOnly = false
+
+export function setAdminReadOnly(readOnly: boolean) {
+  adminReadOnly = readOnly
+}
+
+export function isAdminReadOnly(): boolean {
+  return adminReadOnly
+}
+
 // RequestInit 扩展:timeoutMs 可选,开启后到时自动 abort 请求。
 type RequestOptions = RequestInit & { timeoutMs?: number }
 
@@ -1104,6 +1126,11 @@ export const api = {
   updateAccountCredit: (id: number, data: { credit_enabled: boolean; credit_skip_usage_window: boolean }) =>
     request<MessageResponse>(`/accounts/${id}/credit`, { method: 'PATCH', body: JSON.stringify(data) }),
   getHealth: (options?: { timeoutMs?: number }) => request<HealthResponse>('/health', options),
+  // 只读访问密钥(viewer)管理，仅超级管理员可用。明文 key 只在创建响应里出现一次。
+  listViewerKeys: () => request<{ keys: AdminViewerKey[] }>('/viewer-keys'),
+  createViewerKey: (name: string) =>
+    request<AdminViewerKey & { key: string }>('/viewer-keys', { method: 'POST', body: JSON.stringify({ name }) }),
+  revokeViewerKey: (id: number) => request<{ ok: boolean }>(`/viewer-keys/${id}`, { method: 'DELETE' }),
   getPromptFilterNewAPIBindings: () =>
     request<PromptFilterNewAPIBindingsResponse>('/prompt-filter/newapi-bindings'),
   getPromptFilterNewAPIBinding: (apiKeyId: number) =>
@@ -1691,7 +1718,7 @@ export const api = {
       '/accounts/migrate', { method: 'POST', body: JSON.stringify(data) }),
   // Proxies
   listProxies: () =>
-    request<{ proxies: ProxyRow[] }>('/proxies'),
+    adminReadOnly ? Promise.resolve({ proxies: [] as ProxyRow[] }) : request<{ proxies: ProxyRow[] }>('/proxies'),
   addProxies: (data: { urls?: string[]; url?: string; label?: string }) =>
     request<{ message: string; inserted: number; total: number }>('/proxies', { method: 'POST', body: JSON.stringify(data) }),
   deleteProxy: (id: number) =>

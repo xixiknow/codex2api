@@ -3,6 +3,7 @@ import { formatBeijingTime, getTimezone } from "../utils/time";
 import { useTranslation } from "react-i18next";
 import { CloudOff, RefreshCw } from "lucide-react";
 import { api, AdminAPIError } from "../api";
+import { useReadOnly } from "../hooks/useAdminSession";
 import { useToast } from "../hooks/useToast";
 import { cn } from "@/lib/utils";
 import type { SubscriptionRefreshResponse, SubscriptionStatus } from "../types";
@@ -168,6 +169,8 @@ export function buildSubscriptionTooltip(
 }
 
 export default function SubscriptionBadge({ accountId, subscription, canRefresh = false, className }: SubscriptionBadgeProps) {
+  // 只读访问不能触发订阅刷新（POST）。
+  const readOnly = useReadOnly();
   const { t, i18n } = useTranslation();
   const { showToast } = useToast();
   // 刷新结果先落在本地覆盖层:列表整体重载前也能立刻看到新状态;父级数据更新后以父级为准。
@@ -244,7 +247,7 @@ export default function SubscriptionBadge({ accountId, subscription, canRefresh 
       {stale && <CloudOff className="size-3 shrink-0 opacity-60" aria-label={t("accounts.subscriptionStale")} />}
       <span className="truncate">{described.label}</span>
       {stale && <span className="sr-only">{t("accounts.subscriptionStale")}</span>}
-      {canRefresh && (
+      {canRefresh && !readOnly && (
         <button
           type="button"
           onClick={handleRefresh}

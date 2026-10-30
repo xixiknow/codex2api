@@ -3,6 +3,7 @@ import { History, LoaderCircle, Play } from 'lucide-react'
 import { api } from '../api'
 import { refreshIntelligenceBars } from '../hooks/useIntelligenceBars'
 import { useToast } from '../hooks/useToast'
+import { useReadOnly } from '../hooks/useAdminSession'
 import type { IntelligenceBar } from '../lib/intelligenceCheck'
 import { intelligenceColor, intelligenceLabels, intelligenceWindow } from '../lib/intelligenceCheck'
 import { getErrorMessage } from '../utils/error'
@@ -19,6 +20,7 @@ type AccountIntelligenceProps = {
 }
 
 export function AccountIntelligenceActions({ bar, accountID, accountName }: AccountIntelligenceProps) {
+  const readOnly = useReadOnly()
   const { showToast } = useToast()
   const [history, setHistory] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -40,6 +42,8 @@ export function AccountIntelligenceActions({ bar, accountID, accountName }: Acco
     } catch (e) { showToast(getErrorMessage(e), 'error') }
     finally { setSubmitting(false) }
   }
+  // 只读访问：触发检测是写操作，检测记录接口也不在只读白名单内。
+  if (readOnly) return null
   return <div role="group" aria-label="检测操作" className="inline-flex shrink-0 items-center gap-0.5" onClick={event => event.stopPropagation()}>
     <Button variant="ghost" size="icon-xs" className="size-4.5 rounded-sm text-muted-foreground hover:text-foreground" aria-label={active ? '检测中' : '立即检测'} title={active ? '检测中' : '立即检测'} disabled={active} aria-busy={active} onClick={() => void run()}>
       {active ? <LoaderCircle className="size-3 animate-spin" /> : <Play className="size-3" />}
@@ -51,6 +55,7 @@ export function AccountIntelligenceActions({ bar, accountID, accountName }: Acco
 
 export default function AccountIntelligenceBar({ bar, error }: AccountIntelligenceProps) {
   const [runID, setRunID] = useState<number | null>(null)
+  const readOnly = useReadOnly()
   if (!bar?.enabled) return null
   const { records, rate } = intelligenceWindow(bar?.records ?? [])
   const rateClass = error || rate === null ? 'bg-muted text-muted-foreground'
@@ -68,7 +73,7 @@ export default function AccountIntelligenceBar({ bar, error }: AccountIntelligen
           const time = new Date(record.completed_at || record.created_at || 0).toLocaleString()
           const result = intelligenceLabels[record.status]
           const duration = `${((record.duration_ms ?? 0) / 1000).toFixed(2)} 秒`
-          return { color: intelligenceColor(record.status), label: `${time} · ${record.question_name || '检测'} · ${result} · ${duration}`, onClick: () => setRunID(record.id),
+          return { color: intelligenceColor(record.status), label: `${time} · ${record.question_name || '检测'} · ${result} · ${duration}`, onClick: readOnly ? undefined : () => setRunID(record.id),
             tooltip: <><span className="mb-0.5 block text-muted-foreground">{time}</span><span className="flex items-center gap-2"><span style={{ color: intelligenceColor(record.status) }}>{record.question_name || '检测'} · {result}</span><span className="text-muted-foreground">{duration}</span></span></> }
         }),
       ]} />

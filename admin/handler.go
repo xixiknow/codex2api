@@ -111,6 +111,7 @@ type Handler struct {
 	cacheLabel                 string
 	adminSecretEnv             string
 	adminAuthThrottle          *adminAuthThrottle
+	viewerKeys                 viewerKeyCache
 	imageProxy                 *proxy.Handler
 	antigravitySyncAccount     func(context.Context, int64) antigravityRefreshItem
 	antigravityCapabilityProbe antigravityCapabilityExecutor
@@ -1128,6 +1129,8 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 
 	api := r.Group("/api/admin")
 	api.Use(h.adminAuthMiddleware())
+	api.Use(h.viewerRouteGuard(), h.viewerResponseRedactor())
+	h.registerViewerAccessRoutes(api)
 	api.Use(func(c *gin.Context) {
 		c.Next()
 		if shouldInvalidateAccountSnapshotCaches(c.Request.Method, c.Request.URL.Path, c.Writer.Status()) {
@@ -1457,8 +1460,18 @@ func (h *Handler) adminAuthMiddleware() gin.HandlerFunc {
 		// 清理输入
 		adminKey = security.SanitizeInput(adminKey)
 
+		// 未携带密钥（如登录页的状态轮询）不是一次猜测，不计入失败节流；
+		// 否则停留在登录页几分钟就会把本机 IP 锁住，连正确密钥也登不进。
+		if adminKey == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "管理密钥无效或缺失",
+			})
+			return
+		}
+
 		// 使用安全比较防止时序攻击
-		if !security.SecureCompare(adminKey, adminSecret) {
+		// 管理员密钥不匹配时再尝试只读密钥；失败仍统一走节流计数。
+		if !security.SecureCompare(adminKey, adminSecret) && !h.authenticateViewerKey(c, adminKey) {
 			// 记录安全审计日志
 			security.SecurityAuditLog("ADMIN_AUTH_FAILED", fmt.Sprintf("path=%s ip=%s source=%s", c.Request.URL.Path, security.SanitizeLog(clientIP), source))
 			if blocked := h.adminAuthThrottle.recordFailure(clientIP, time.Now()); blocked > 0 {

@@ -1122,7 +1122,7 @@ func (db *DB) migrate(ctx context.Context) error {
 	if db.isSQLite() {
 		return db.migrateSQLite(ctx)
 	}
-	query := codexClientVersionCacheSchema + `;
+	query := codexClientVersionCacheSchema + ";" + adminViewerKeysPostgresSchema + `;
 	CREATE TABLE IF NOT EXISTS accounts (
 		id            SERIAL PRIMARY KEY,
 		name          VARCHAR(255) DEFAULT '',
