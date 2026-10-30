@@ -16,7 +16,7 @@ import (
 var AllUpstreamChannels = []string{"codex", "claude", "antigravity", "grok"}
 
 // FallbackVisibleChannel 是兜底渠道：无论怎么配置都保持显示，避免把管理台关成空白。
-const FallbackVisibleChannel = "codex"
+const FallbackVisibleChannel = "claude"
 
 // VisibleChannelsConfig 记录用户勾选的可见渠道。
 //

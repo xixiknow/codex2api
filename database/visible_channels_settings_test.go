@@ -13,9 +13,9 @@ func TestNormalizeVisibleChannels(t *testing.T) {
 		want []string
 	}{
 		{"nil means everything visible", nil, []string{"codex", "claude", "antigravity", "grok"}},
-		{"empty list keeps the fallback", []string{}, []string{"codex"}},
-		{"fallback is added when missing", []string{"grok"}, []string{"codex", "grok"}},
-		{"unknown, blank and duplicate entries are dropped and order is canonical", []string{" Grok ", "", "claude", "grok", "openai"}, []string{"codex", "claude", "grok"}},
+		{"empty list keeps the fallback", []string{}, []string{"claude"}},
+		{"fallback is added when missing", []string{"grok"}, []string{"claude", "grok"}},
+		{"unknown, blank and duplicate entries are dropped and order is canonical", []string{" Grok ", "", "claude", "grok", "openai"}, []string{"claude", "grok"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -36,7 +36,7 @@ func TestVisibleChannelsConfigRoundTrip(t *testing.T) {
 	if err := json.Unmarshal(raw, &cfg); err != nil {
 		t.Fatal(err)
 	}
-	if got := cfg.Effective(); !reflect.DeepEqual(got, []string{"codex"}) {
+	if got := cfg.Effective(); !reflect.DeepEqual(got, []string{"claude"}) {
 		t.Fatalf("round trip of explicit fallback-only list = %v, raw=%s", got, raw)
 	}
 	var missing VisibleChannelsConfig
