@@ -30,7 +30,8 @@ before(async () => {
           return `export const api = {
             getHealth: options => window.__request('health', options),
             getSystemUpdate: () => window.__request('update'),
-          }`
+          }
+          export const isAdminReadOnly = () => false`
         }
         if (id !== '\0version-check-harness') return
         return `
