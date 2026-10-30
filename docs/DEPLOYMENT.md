@@ -1,6 +1,6 @@
-# Codex2API 部署文档
+# Tidepool 部署文档
 
-本文档详细说明 Codex2API 的各种部署方式。
+本文档详细说明 Tidepool 的各种部署方式。
 
 ## 目录
 
@@ -31,7 +31,7 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/james-6-23/codex2api.git
+git clone https://github.com/xixiknow/codex2api.git
 cd codex2api
 
 # 配置环境
@@ -151,13 +151,6 @@ docker compose -f docker-compose.sqlite.local.yml up -d --build
 
 Render 可以直接运行 GHCR 中已经构建好的镜像，适合放一个公开 Demo 或轻量测试环境。
 
-当前公开 Demo：
-
-| 项目 | 地址 |
-|------|------|
-| Demo 首页 | [https://codex2api-latest-vu8j.onrender.com](https://codex2api-latest-vu8j.onrender.com) |
-| Demo 密码 | `codex2api` |
-
 > Demo 环境仅用于体验管理后台界面和基础功能，请勿上传真实 Refresh Token、Access Token、API Key 或其他敏感信息。
 
 ### 1. 创建 Image-backed Web Service
@@ -165,7 +158,7 @@ Render 可以直接运行 GHCR 中已经构建好的镜像，适合放一个公�
 在 Render Dashboard 中创建 `Web Service`，选择 `Existing Image`，镜像地址填写：
 
 ```text
-ghcr.io/james-6-23/codex2api:latest
+ghcr.io/xixiknow/codex2api:xixi
 ```
 
 如果 GHCR Package 不是公开访问，需要先在 Render 的 Registry Credentials 中配置 GitHub Container Registry 凭据。
@@ -193,7 +186,7 @@ Render Web Service 默认会通过 `PORT=10000` 暴露服务；本项目也会�
 
 ### 3. 配置自动部署最新镜像
 
-Render 的 image-backed 服务不会在 `latest` 标签更新后自动重新部署。需要使用服务 Settings 中的 Deploy Hook：
+Render 的 image-backed 服务不会在镜像标签更新后自动重新部署。需要使用服务 Settings 中的 Deploy Hook：
 
 1. 打开 Render 服务的 `Settings`。
 2. 找到 `Deploy Hook` 并复制 URL。
@@ -204,7 +197,7 @@ Render 的 image-backed 服务不会在 `latest` 标签更新后自动重新部�
 RENDER_DEPLOY_HOOK_URL=<Render Deploy Hook URL>
 ```
 
-之后 `.github/workflows/render-deploy.yml` 会在 `Build Docker Image` 工作流成功后自动请求该 Hook，让 Render 重新拉取 `ghcr.io/james-6-23/codex2api:latest` 并部署。
+之后 `.github/workflows/render-deploy.yml` 会在 `Build Docker Image` 工作流成功后自动请求该 Hook，让 Render 重新拉取镜像 并部署。
 
 也可以手动触发镜像构建工作流，镜像推送成功后会自动进入 Render 部署工作流：
 
@@ -406,7 +399,7 @@ version: '3.8'
 
 services:
   codex2api:
-    image: ghcr.io/james-6-23/codex2api:latest
+    image: ghcr.io/xixiknow/codex2api:xixi
     container_name: codex2api
     restart: unless-stopped
     env_file:

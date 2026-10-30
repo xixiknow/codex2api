@@ -6,7 +6,7 @@ import { buildWritableSettingsPayload } from "./settingsPayload.ts";
 test("writable settings payload omits response cache generation regardless of value", () => {
   for (const generation of [7, 0, null, undefined]) {
     const settings = {
-      site_name: "CodexProxy",
+      site_name: "Tidepool",
       response_cache_local_max_bytes: 64 * 1024 * 1024,
       response_cache_local_max_entry_bytes: 8 * 1024 * 1024,
       response_cache_reconstruct_max_bytes: 64 * 1024 * 1024,
@@ -25,7 +25,7 @@ test("writable settings payload omits response cache generation regardless of va
       false,
     );
     assert.deepEqual(payload, {
-      site_name: "CodexProxy",
+      site_name: "Tidepool",
       response_cache_local_max_bytes: 64 * 1024 * 1024,
       response_cache_local_max_entry_bytes: 8 * 1024 * 1024,
       response_cache_reconstruct_max_bytes: 64 * 1024 * 1024,

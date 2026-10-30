@@ -4,7 +4,7 @@
 
 ## Overview
 
-Codex2API can manage Google Antigravity accounts as a dedicated upstream channel and expose their models through the OpenAI-compatible `/v1/responses`, `/v1/chat/completions`, `/v1/messages`, and `/v1/models` surfaces. Antigravity accounts are isolated from Codex and Grok account groups and can be selected explicitly with an API key whose upstream channel is `antigravity`.
+Tidepool can manage Google Antigravity accounts as a dedicated upstream channel and expose their models through the OpenAI-compatible `/v1/responses`, `/v1/chat/completions`, `/v1/messages`, and `/v1/models` surfaces. Antigravity accounts are isolated from Codex and Grok account groups and can be selected explicitly with an API key whose upstream channel is `antigravity`.
 
 Two credential shapes are supported:
 
@@ -95,7 +95,7 @@ API Key accounts use `plan_type=api`, do not require an OAuth project ID, and do
 
 ## Downstream API key channel restriction
 
-When creating or editing a Codex2API downstream API key, choose **Antigravity** as its upstream channel to restrict dispatch to compatible Antigravity accounts. `auto` keys may route by model across Codex, Grok, and OAuth Antigravity accounts according to the available scoped model catalog. Experimental API-key accounts join either catalog only after the explicit environment opt-in above.
+When creating or editing a Tidepool downstream API key, choose **Antigravity** as its upstream channel to restrict dispatch to compatible Antigravity accounts. `auto` keys may route by model across Codex, Grok, and OAuth Antigravity accounts according to the available scoped model catalog. Experimental API-key accounts join either catalog only after the explicit environment opt-in above.
 
 Account groups are channel-isolated: an Antigravity account can only join an Antigravity group.
 
@@ -130,7 +130,7 @@ Antigravity OAuth accounts also support the native Gemini REST shape for clients
 Requirements and behavior:
 
 - **OAuth only.** API Key / Interactions accounts are rejected; bind a downstream key to the `antigravity` upstream channel (or use an `auto` key whose scoped catalog includes Antigravity models).
-- **Authentication.** Send the Codex2API downstream key as `Authorization: Bearer <key>`, `x-api-key: <key>`, or `x-goog-api-key: <key>`. The last form is what the `google-genai` SDK, ADK, and the Gemini channel of aggregator gateways send by default, so pointing their base URL at Codex2API works without a custom header. The `?key=` query-string form is not accepted (the key would land in URLs and access logs).
+- **Authentication.** Send the Tidepool downstream key as `Authorization: Bearer <key>`, `x-api-key: <key>`, or `x-goog-api-key: <key>`. The last form is what the `google-genai` SDK, ADK, and the Gemini channel of aggregator gateways send by default, so pointing their base URL at Tidepool works without a custom header. The `?key=` query-string form is not accepted (the key would land in URLs and access logs).
 - **Model IDs** match the published Antigravity catalog (`gemini-3.7-flash-high`, `gemini-3.8-flash-low`, `gemini-4-argon-high`, Claude tiers exposed by the channel, and so on), not raw Google wire IDs.
 - **Tool schemas** are normalized before upstream dispatch: orphan `required` entries are dropped, `anyOf` / `oneOf` / `allOf` unions are flattened, invalid function names are sanitized with response-name restore, and schemas are sent as `parametersJsonSchema` (Cloud Code expectation).
 - **Multi-turn tools:** `functionResponse` turns are regrouped for the adapter; leading `inlineData` parts in the same user turn are attached under the matching `functionResponse.parts`.
@@ -198,7 +198,7 @@ It currently preserves the OpenAI Responses-style request body and injects:
 }
 ```
 
-Unit tests use an `httptest` endpoint override and verify that Codex2API constructs this endpoint, header set, and payload. They do **not** prove that Google accepts this body or returns OpenAI Responses-compatible JSON/SSE.
+Unit tests use an `httptest` endpoint override and verify that Tidepool constructs this endpoint, header set, and payload. They do **not** prove that Google accepts this body or returns OpenAI Responses-compatible JSON/SSE.
 
 An opt-in production-executor integration test is available:
 

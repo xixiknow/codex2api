@@ -1,6 +1,6 @@
-# Codex2API 配置说明
+# Tidepool 配置说明
 
-本文档详细说明 Codex2API 的所有配置项及其作用。
+本文档详细说明 Tidepool 的所有配置项及其作用。
 
 ## 目录
 
@@ -53,7 +53,7 @@ Windows 自动发送平台不可用状态，Linux 不自动补头，macOS 尝试
 
 ## 配置层级
 
-Codex2API 采用三层配置架构：
+Tidepool 采用三层配置架构：
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -161,7 +161,7 @@ Antigravity 渠道的首绑 / Fresh 选号默认启用加权避险：候选账�
 |------|------|--------|------|
 | `CODEX_IMAGES_MAIN_MODEL` | 否 | `gpt-5.6-luna` | 生图文本驱动的部署默认值；后台「Codex → 生图设置」选择具体模型后优先使用后台配置 |
 | `IMAGE_ASSET_DIR` | 否 | `/data/images` | 管理台生图工作台保存图片文件的服务器目录；Docker 部署建议持久化 `/data` |
-| `IMAGE_ASSET_PUBLIC_BASE_URL` | 否 | 空 | 图片代理 URL 的公开基址，例如 `https://cdn.example.com`；仅改变返回地址，需由反向代理将 `/p/img/` 转发到 Codex2Api |
+| `IMAGE_ASSET_PUBLIC_BASE_URL` | 否 | 空 | 图片代理 URL 的公开基址，例如 `https://cdn.example.com`；仅改变返回地址，需由反向代理将 `/p/img/` 转发到 Tidepool |
 | `IMAGE_ASSET_SIGNING_SECRET` | 否 | 随机值 | 图片代理 URL 的持久化签名密钥；生产环境应配置固定随机值，避免服务重启后历史图片链接失效 |
 | `IMAGE_UPSCALER_ENDPOINT` | 否 | 空 | RealESRGAN 服务地址，例如 `http://image-upscaler:8090`；配置后 `upscale=2k/4k` 必须由该服务成功处理，否则异步任务失败 |
 | `IMAGE_UPSCALER_FIT` | 否 | `inside` | RealESRGAN 目标尺寸适配方式，可选 `inside` 或 `cover` |
@@ -264,7 +264,7 @@ API Key 启用多个 RPM/RPD/费用/Token 窗口时，Redis 会通过一次 `MGE
 
 ### Responses 上下文缓存
 
-Responses 连续请求会按 `previous_response_id` 重建上下文。每个 Codex2API 进程都有一层有界 L1 缓存，三个字节预算保存在数据库中；管理台用整数 MiB 展示和修改，管理 API 使用原始字节数。
+Responses 连续请求会按 `previous_response_id` 重建上下文。每个 Tidepool 进程都有一层有界 L1 缓存，三个字节预算保存在数据库中；管理台用整数 MiB 展示和修改，管理 API 使用原始字节数。
 
 | 管理 API 字段 | 默认值 | 设置页范围 | 说明 |
 |------|------|------|------|
@@ -509,7 +509,7 @@ Claude / Grok / Antigravity 等中继型账号不经 Resin，始终按第 2、3 
 
 ```bash
 # ============================================================
-# Codex2API 生产环境配置
+# Tidepool 生产环境配置
 # ============================================================
 
 # 服务配置
@@ -543,7 +543,7 @@ REDIS_INSECURE_SKIP_VERIFY=false
 
 ```bash
 # ============================================================
-# Codex2API SQLite 轻量版配置
+# Tidepool SQLite 轻量版配置
 # ============================================================
 
 # 服务配置
@@ -566,7 +566,7 @@ CACHE_DRIVER=memory
 
 ```bash
 # ============================================================
-# Codex2API 开发环境配置
+# Tidepool 开发环境配置
 # ============================================================
 
 CODEX_PORT=8080

@@ -1,6 +1,6 @@
 # 代理风险评分（仅供参考）
 
-Codex2API 内置 Scamalytics IP Fraud Risk API v3 评分适配器，可以把代理池中的出口 IP 直接提交到 Scamalytics 做批量观察。独立的 8788 包装服务不是运行依赖，评分结果用于运营筛选、审计和排查，不会自动禁用代理，也不会改变账号绑定、代理池路由或请求转发。
+Tidepool 内置 Scamalytics IP Fraud Risk API v3 评分适配器，可以把代理池中的出口 IP 直接提交到 Scamalytics 做批量观察。独立的 8788 包装服务不是运行依赖，评分结果用于运营筛选、审计和排查，不会自动禁用代理，也不会改变账号绑定、代理池路由或请求转发。
 
 ## 支持的服务协议
 
@@ -25,11 +25,11 @@ Header: User-Agent: Codex2API-Scamalytics/1.0
 
 “测试内置引擎”会使用 `8.8.8.8` 发起一次真实 v3 查询，因此会消耗一次 Scamalytics 额度。
 
-Scamalytics User 和 API Key 只在 Codex2API 服务端保存，管理 API 只返回“已配置”和掩码。Codex2API 只提交代理 URL 解析出的 IP，不会把代理 URL 中的用户名、密码发送给 Scamalytics。
+Scamalytics User 和 API Key 只在 Tidepool 服务端保存，管理 API 只返回“已配置”和掩码。Tidepool 只提交代理 URL 解析出的 IP，不会把代理 URL 中的用户名、密码发送给 Scamalytics。
 
 ## 额度与次数
 
-- `每日最多检测数` 是 Codex2API 本地任务预算，`0` 表示不限制。
+- `每日最多检测数` 是 Tidepool 本地任务预算，`0` 表示不限制。
 - `剩余额度保护阈值` 用于 Scamalytics 返回 credits 时的停止保护。
 - `缓存有效期` 内重复评分默认直接使用快照，不消耗外部次数。
 - `强制刷新` 只有在档案明确允许时才可绕过缓存。

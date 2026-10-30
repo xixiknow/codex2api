@@ -1,6 +1,6 @@
-# Codex2API 贡献指南
+# Tidepool 贡献指南
 
-感谢您对 Codex2API 项目的关注！本指南将帮助您了解如何参与项目贡献。
+感谢您对 Tidepool 项目的关注！本指南将帮助您了解如何参与项目贡献。
 
 ## 目录
 
@@ -29,7 +29,7 @@
 ```bash
 git clone https://github.com/YOUR_USERNAME/codex2api.git
 cd codex2api
-git remote add upstream https://github.com/james-6-23/codex2api.git
+git remote add upstream https://github.com/xixiknow/codex2api.git
 ```
 
 2. **安装后端依赖**
@@ -410,8 +410,8 @@ git push origin v1.0.0
 
 ## 获取帮助
 
-- **GitHub Issues**: [提交问题](https://github.com/james-6-23/codex2api/issues)
-- **Discussions**: [参与讨论](https://github.com/james-6-23/codex2api/discussions)
+- **GitHub Issues**: [提交问题](https://github.com/xixiknow/codex2api/issues)
+- **Discussions**: [参与讨论](https://github.com/xixiknow/codex2api/discussions)
 
 ---
 

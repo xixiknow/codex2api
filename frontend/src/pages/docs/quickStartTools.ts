@@ -142,6 +142,7 @@ export function resolveTemplate(
   tool: QuickTool,
   address: string,
   key: string,
+  siteName: string,
 ): string {
   const base = tool.kind === "protocol" ? tool.url : tool.template;
   if (!base) return "";
@@ -149,7 +150,7 @@ export function resolveTemplate(
     const params = new URLSearchParams();
     params.set("resource", "provider");
     params.set("app", "claude");
-    params.set("name", "Codex2API Claude");
+    params.set("name", `${siteName} Claude`);
     params.set("endpoint", address);
     params.set("apiKey", key);
     params.set("model", "claude-sonnet-4-5");
@@ -161,7 +162,7 @@ export function resolveTemplate(
     const cfg = encodeURIComponent(
       encodeBase64(
         JSON.stringify({
-          id: "codex2api",
+          id: "tidepool",
           baseUrl: address,
           apiKey: key,
         }),
@@ -173,7 +174,7 @@ export function resolveTemplate(
     const cfg = encodeURIComponent(
       encodeBase64(
         JSON.stringify({
-          platform: "codex2api",
+          platform: "tidepool",
           baseUrl: address,
           apiKey: key,
         }),

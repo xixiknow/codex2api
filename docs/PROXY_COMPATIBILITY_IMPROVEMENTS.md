@@ -1,6 +1,6 @@
 # Sub2API v0.2.1 兼容实现
 
-本次参考 `Wei-Shaw/sub2api` 的 `v0.2.0..v0.2.1`，沿用 Codex2API 的调度、响应缓存、计费和存储边界。
+本次参考 `Wei-Shaw/sub2api` 的 `v0.2.0..v0.2.1`，沿用 Tidepool 的调度、响应缓存、计费和存储边界。
 
 ## 续聊恢复
 

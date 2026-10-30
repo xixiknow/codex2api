@@ -20,7 +20,7 @@ Use `strict: true` only for patterns with very low false-positive risk. Keep con
 
 ## Nginx request buffering
 
-Nginx cannot safely inspect arbitrary JSON prompts with ordinary `map` or location rules. Buffer the complete request and let Codex2API parse and inspect it before any upstream model request is opened. Use the example in `deploy/nginx/codex2api-prompt-buffering.conf.example`.
+Nginx cannot safely inspect arbitrary JSON prompts with ordinary `map` or location rules. Buffer the complete request and let Tidepool parse and inspect it before any upstream model request is opened. Use the example in `deploy/nginx/codex2api-prompt-buffering.conf.example`.
 
 Do not enable `proxy_cache` for prompt endpoints. Prompt bodies may contain secrets and user content; caching or body logging creates a separate disclosure risk. If requests may spill to `client_body_temp_path`, place that directory on encrypted storage or tmpfs and keep `client_max_body_size` no larger than the configured in-memory buffer.
 
@@ -80,7 +80,7 @@ All advanced layers are disabled by default and are stored in `prompt_filter_adv
 
 `enforcement.terminal_categories` is empty by default. Adding `reverse_engineering` makes every rule in that category terminal, including generic requests mentioning reverse engineering, IDA, Ghidra, Frida, disassembly, decompilation, or unpacking. Category-terminal matches cannot be discounted or downgraded by a review service.
 
-Risk state uses the configured runtime cache. Redis is recommended for multiple Codex2API replicas; the memory cache works for a single process. User identifiers, IP addresses, and session headers are hashed before they become cache keys. The score decays across the configured window.
+Risk state uses the configured runtime cache. Redis is recommended for multiple Tidepool replicas; the memory cache works for a single process. User identifiers, IP addresses, and session headers are hashed before they become cache keys. The score decays across the configured window.
 
 The optional sidecar receives `POST /v1/guard/check`. Set its bearer token through `PROMPT_FILTER_SIDECAR_API_KEY`; it is deliberately not stored in the admin JSON. A sidecar may escalate `allow` to `warn` or `block`, but cannot downgrade a local block, and terminal strict matches bypass it entirely.
 

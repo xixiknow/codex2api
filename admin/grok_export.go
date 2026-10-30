@@ -269,11 +269,11 @@ func (h *Handler) ExportGrokAccounts(c *gin.Context) {
 }
 
 // grokExportDownloadName 生成下载文件名，沿用仓库既有的导出命名约定
-// codex2api-<平台>-<时间戳>-<数量>.<ext>（对齐 codex2api-recycle-… 等）。
+// tidepool-<平台>-<时间戳>-<数量>.<ext>（对齐 tidepool-recycle-… 等）。
 // 注意这只是下载物的名字：ZIP 内部成员按 <邮箱>.json 命名，
 // 保留每个账号的身份、也让解开后能逐个导入。
 func grokExportDownloadName(count int, ext string) string {
-	return fmt.Sprintf("codex2api-grok-%s-%d.%s", time.Now().UTC().Format("20060102-150405"), count, ext)
+	return fmt.Sprintf("tidepool-grok-%s-%d.%s", time.Now().UTC().Format("20060102-150405"), count, ext)
 }
 
 // accountRowToExportEntry 按平台分派导出形态：Grok/xAI 账号走 Grok CLI 超集形态，

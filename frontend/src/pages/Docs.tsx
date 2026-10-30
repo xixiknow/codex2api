@@ -34,6 +34,7 @@ import {
 import { DEFAULT_CLAUDE_MODEL_MAP } from "../lib/modelMapping";
 import { getLobeIconFileUrl } from "../components/ModelLogo";
 import type { ModelsResponse, SystemSettings } from "../types";
+import { normalizeSiteName } from "../branding";
 
 const FALLBACK_MODELS = [
   "gpt-5.5",
@@ -408,7 +409,7 @@ function slugProviderId(name: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-  return slug || "codexproxy";
+  return slug || "tidepool";
 }
 
 function modelIncludes(models: string[], model?: string) {
@@ -578,7 +579,7 @@ export default function Docs() {
     ccSwitchApp === "claude" ? claudeModelOptions : modelOptions;
   const quickTools = useMemo(() => buildQuickTools(docsLocale), [docsLocale]);
   const ccSwitchConfig = CC_SWITCH_APPS[ccSwitchApp];
-  const siteName = settings?.site_name?.trim() || "CodexProxy";
+  const siteName = normalizeSiteName(settings?.site_name);
   const defaultCcSwitchName = `${siteName} ${ccSwitchConfig.suffix}`;
   const defaultCherryProviderId = slugProviderId(siteName);
   const showQuickCodexOptions =
@@ -834,6 +835,7 @@ export default function Docs() {
       baseUrl: quickBaseUrl,
       quickTools,
       apiKeyExample: "YOUR_API_KEY",
+      siteName,
       clientConfigs: [
         { label: codexConfigPath, lang: "toml", content: codexConfigToml },
         {
@@ -992,7 +994,7 @@ set CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`;
         <div>
           <div className="docs-eyebrow">
             <BookOpen className="size-3.5" />
-            CODEX2API / {copy("使用文档", "DOCUMENTATION")}
+            {siteName.toUpperCase()} / {copy("使用文档", "DOCUMENTATION")}
           </div>
           <h2>{copy("从接入到用好每个接口", "Connect. Build. Go further.")}</h2>
           <p>

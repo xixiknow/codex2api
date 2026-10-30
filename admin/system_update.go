@@ -28,8 +28,8 @@ import (
 )
 
 const (
-	systemUpdateRepo             = "james-6-23/codex2api"
-	systemUpdateUserAgent        = "Codex2API-Updater"
+	systemUpdateRepo             = "xixiknow/codex2api"
+	systemUpdateUserAgent        = "Tidepool-Updater"
 	systemUpdateMaxDownloadBytes = 200 * 1024 * 1024
 	systemUpdateRestartDelay     = 900 * time.Millisecond
 	systemUpdateReleaseCacheTTL  = 2 * time.Minute

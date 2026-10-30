@@ -1,6 +1,6 @@
-# Codex2API API 文档
+# Tidepool API 文档
 
-本文档详细描述 Codex2API 的所有 API 端点、请求/响应格式以及错误码说明。
+本文档详细描述 Tidepool 的所有 API 端点、请求/响应格式以及错误码说明。
 
 ## 目录
 
@@ -34,7 +34,7 @@
 
 ## 概述
 
-Codex2API 提供兼容 OpenAI 风格的 API 接口，同时包含完整的管理后台 API。
+Tidepool 提供兼容 OpenAI 风格的 API 接口，同时包含完整的管理后台 API。
 
 Anthropic `/v1/messages` 在没有可用 Claude OAuth 账号时，才将官方 `speed:"fast"` 映射为上游 Codex `service_tier:"priority"`；Claude OAuth 账号优先走原生 Anthropic Messages 透传，不经过该转换。Anthropic 请求侧 `service_tier`（Priority Tier）不在此映射范围内。用量日志的 `service_tier` / `fast` 过滤反映该解析结果。
 
@@ -95,7 +95,7 @@ Authorization: Bearer sk-xxxxxxxxxxxxxxxxxxxxxxxx
 X-Codex2API-Affinity-Key: tenant-user-or-conversation-id
 ```
 
-该请求头优先于其他会话亲和信号。Codex2API 会先对原始值做 SHA-256 派生，只保留本地路由标识；原始值不会保存，也不会转发给上游。
+该请求头优先于其他会话亲和信号。Tidepool 会先对原始值做 SHA-256 派生，只保留本地路由标识；原始值不会保存，也不会转发给上游。
 
 **配置方式:**
 
@@ -1726,7 +1726,7 @@ data: {"type":"complete","current":3,"total":3,"success":2,"failed":1}
 
 #### POST /api/admin/accounts/migrate
 
-从远程 codex2api 实例迁移账号。
+从远程 Tidepool 实例迁移账号。
 
 **请求:**
 

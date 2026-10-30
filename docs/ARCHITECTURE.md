@@ -1,6 +1,6 @@
-# Codex2API 架构设计文档
+# Tidepool 架构设计文档
 
-本文档描述 Codex2API 的整体架构设计、核心组件及数据流。
+本文档描述 Tidepool 的整体架构设计、核心组件及数据流。
 
 ## 目录
 
@@ -36,7 +36,7 @@
                                        │
                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           Codex2API 服务 (Go + Gin)                          │
+│                           Tidepool 服务 (Go + Gin)                          │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │  HTTP 路由层                                                        │   │
 │  │  ├── /admin/*     → React SPA (go:embed)                          │   │
@@ -644,7 +644,7 @@ func SanitizeLog(msg string) string {
           │              │              │
           ▼              ▼              ▼
 ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
-│  Codex2API #1   │ │  Codex2API #2   │ │  Codex2API #3   │
+│  Tidepool #1   │ │  Tidepool #2   │ │  Tidepool #3   │
 │                 │ │                 │ │                 │
 │  + PostgreSQL   │ │  + PostgreSQL   │ │  + PostgreSQL   │
 │  + Redis        │ │  + Redis        │ │  + Redis        │

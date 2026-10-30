@@ -1,6 +1,6 @@
-# Codex2API 故障排查指南
+# Tidepool 故障排查指南
 
-本文档提供 Codex2API 常见问题的排查方法和解决方案。
+本文档提供 Tidepool 常见问题的排查方法和解决方案。
 
 ## 目录
 
@@ -562,7 +562,7 @@ docker compose logs codex2api | awk '{for(i=1;i<=NF;i++){if($i ~ /@/){gsub(/[\[\
 
 ### WS 1009 与首事件延迟
 
-上游 WebSocket 可能在等待较长时间后才返回 close 1009。若此时尚未向客户端输出内容，Codex2API 会保留同一账号和代理并降级一次 HTTP；已经输出内容后不会降级。
+上游 WebSocket 可能在等待较长时间后才返回 close 1009。若此时尚未向客户端输出内容，Tidepool 会保留同一账号和代理并降级一次 HTTP；已经输出内容后不会降级。
 
 搜索包含 `WebSocket 1009 HTTP 降级尝试结束` 的日志，并按以下字段拆分耗时：
 
@@ -591,7 +591,7 @@ total_elapsed_ms
 BASE_URL="http://localhost:8080"
 ADMIN_KEY="${ADMIN_KEY:-default}"
 
-echo "========== Codex2API 诊断报告 =========="
+echo "========== Tidepool 诊断报告 =========="
 echo "时间: $(date)"
 echo ""
 

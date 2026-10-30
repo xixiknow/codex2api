@@ -394,7 +394,7 @@ func (h *Handler) PostBootstrap(c *gin.Context) {
 		}
 		security.SecurityAuditLog("BOOTSTRAP_REJECTED_TOKEN", auditIP)
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "初始化令牌无效。请在服务日志中搜索 bootstrap token 获取令牌（例如 docker compose logs codex2api | grep \"bootstrap token\"）；重启服务会生成新令牌。",
+			"error": "初始化令牌无效。请在服务日志中搜索 bootstrap token 获取令牌（Docker 部署可执行 docker compose logs | grep \"bootstrap token\"）；重启服务会生成新令牌。",
 			"code":  "bootstrap_token_invalid",
 		})
 		return

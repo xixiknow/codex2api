@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, Copy, ExternalLink } from 'lucide-react'
 import { api } from '../api'
+import { useBranding } from '../branding'
 import PageHeader from '../components/PageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -65,9 +66,9 @@ function encodeBase64(text: string): string {
   return btoa(unescape(encodeURIComponent(text)))
 }
 
-function buildCcSwitchUrl(baseUrl: string, apiKey: string): string {
+function buildCcSwitchUrl(baseUrl: string, apiKey: string, siteName: string): string {
   const config = encodeURIComponent(encodeBase64(JSON.stringify({
-    name: 'codex2api',
+    name: siteName,
     baseURL: baseUrl,
     apiKey,
     anthropicVersion: '2023-06-01',
@@ -152,6 +153,7 @@ function ClientCard({ tool, activeKey, baseUrl }: {
   activeKey: string
   baseUrl: string
 }) {
+  const { siteName } = useBranding()
   const [codexTab, setCodexTab] = useState<'unix' | 'windows'>('unix')
   const [claudeTab, setClaudeTab] = useState<'env-unix' | 'env-windows' | 'settings'>('env-unix')
   const key = activeKey || 'YOUR_API_KEY'
@@ -193,7 +195,7 @@ set CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`
   }
 }`
 
-  const ccSwitchUrl = buildCcSwitchUrl(baseUrl, key)
+  const ccSwitchUrl = buildCcSwitchUrl(baseUrl, key, siteName)
 
   return (
     <Card id={`client-${tool.id}`} className="scroll-mt-20">

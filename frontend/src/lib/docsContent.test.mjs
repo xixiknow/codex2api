@@ -6,12 +6,10 @@ import ts from "typescript";
 // Compile the small, browser-independent content graph with the project's
 // compiler. This also works on Node 22.12 without a custom TS loader.
 const modules = new Map();
-function loadContent(name) {
-  if (modules.has(name)) return modules.get(name);
-  const source = readFileSync(
-    new URL(`../pages/docs/${name}.ts`, import.meta.url),
-    "utf8",
-  );
+function loadModule(url) {
+  const key = url.href;
+  if (modules.has(key)) return modules.get(key);
+  const source = readFileSync(url, "utf8");
   const { outputText } = ts.transpileModule(source, {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
@@ -19,12 +17,15 @@ function loadContent(name) {
     },
   });
   const exports = {};
-  modules.set(name, exports);
+  modules.set(key, exports);
   new Function("require", "exports", outputText)(
-    (relative) => loadContent(relative.replace("./", "")),
+    (relative) => loadModule(new URL(`${relative}.ts`, url)),
     exports,
   );
   return exports;
+}
+function loadContent(name) {
+  return loadModule(new URL(`../pages/docs/${name}.ts`, import.meta.url));
 }
 const { buildEndpointSpecs, buildDocsMarkdown } = loadContent("docsContent");
 const { buildGuides } = loadContent("docsGuides");
@@ -87,6 +88,7 @@ test("Markdown includes the same guides, parameters and alternate examples as th
       locale,
       quickTools: [],
       apiKeyExample: "YOUR_API_KEY",
+      siteName: "Tidepool",
       clientConfigs: [
         {
           label: "custom-config",

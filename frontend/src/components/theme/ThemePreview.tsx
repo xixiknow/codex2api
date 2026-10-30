@@ -1,6 +1,7 @@
 import { useState, type CSSProperties } from 'react'
 import { Activity, ArrowUpRight, Check, ChevronDown, Circle, Command, KeyRound, LayoutDashboard, MoreHorizontal, Plus, Settings2, SlidersHorizontal, Users, Zap } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { useBranding } from '../../branding'
 import { getThemePreviewSwatch, type ColorThemeDef, type Theme, type ThemeMode, type ThemePreviewSwatch, type WebsiteThemeStyle } from '../../hooks/useTheme'
 
 const BARS = [28, 43, 35, 55, 42, 66, 52, 70, 57, 76, 65, 90, 73, 86, 68, 96, 82, 92]
@@ -108,6 +109,7 @@ function ComponentsPreview() {
 
 export function ThemeLivePreview({ item, mode }: { item: ColorThemeDef; mode: Theme }) {
   const { t } = useTranslation()
+  const { siteName } = useBranding()
   const [scene, setScene] = useState<'workbench' | 'components'>('workbench')
   const swatch = getThemePreviewSwatch(item, mode)
   const tokens = [
@@ -127,7 +129,7 @@ export function ThemeLivePreview({ item, mode }: { item: ColorThemeDef; mode: Th
       </div>
       <div className="appearance-preview-stage">
         <div className="appearance-preview-window">
-          <div className="appearance-window-chrome"><span aria-hidden="true"><i /><i /><i /></span><span>codex2api / {scene === 'workbench' ? 'workspace' : 'components'}</span><span>{t('themeSettings.demoLabel')}</span></div>
+          <div className="appearance-window-chrome"><span aria-hidden="true"><i /><i /><i /></span><span>{siteName.toLowerCase()} / {scene === 'workbench' ? 'workspace' : 'components'}</span><span>{t('themeSettings.demoLabel')}</span></div>
           <div role="img" aria-label={t('themeSettings.previewAccessible', { theme: t(item.nameKey), mode: t(mode === 'dark' ? 'themeSettings.modeDark' : 'themeSettings.modeLight'), scene: t(scene === 'workbench' ? 'themeSettings.sceneWorkbench' : 'themeSettings.sceneComponents') })}>
             {scene === 'workbench' ? <WorkbenchPreview /> : <ComponentsPreview />}
           </div>

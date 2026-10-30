@@ -4,7 +4,7 @@ package admin
 //
 // Claude credentials are intentionally kept out of the generic Codex export
 // endpoint.  This file defines a provider-specific, versioned document that
-// can be moved between Codex2API installations without exposing arbitrary
+// can be moved between Tidepool installations without exposing arbitrary
 // request headers or instance-local group IDs.
 
 import (
@@ -1099,7 +1099,7 @@ func (h *Handler) ExportClaudeAccounts(c *gin.Context) {
 			writeInternalError(c, err)
 			return
 		}
-		writeSecretDownloadHeaders(c, fmt.Sprintf("codex2api-claude-%s-%d.json", time.Now().UTC().Format("20060102-150405"), len(entries)))
+		writeSecretDownloadHeaders(c, fmt.Sprintf("tidepool-claude-%s-%d.json", time.Now().UTC().Format("20060102-150405"), len(entries)))
 		c.Header("X-Export-Count", strconv.Itoa(len(entries)))
 		c.Data(http.StatusOK, "application/json; charset=utf-8", encoded)
 		return
@@ -1109,7 +1109,7 @@ func (h *Handler) ExportClaudeAccounts(c *gin.Context) {
 		writeInternalError(c, err)
 		return
 	}
-	writeSecretDownloadHeaders(c, fmt.Sprintf("codex2api-claude-%s-%d.zip", time.Now().UTC().Format("20060102-150405"), len(entries)))
+	writeSecretDownloadHeaders(c, fmt.Sprintf("tidepool-claude-%s-%d.zip", time.Now().UTC().Format("20060102-150405"), len(entries)))
 	c.Header("X-Export-Count", strconv.Itoa(len(entries)))
 	c.Data(http.StatusOK, "application/zip", archive)
 }

@@ -1,3 +1,4 @@
+import { PROJECT_DOCS_BRANCH, PROJECT_REPO_URL } from "../../lib/project";
 import type { DocsLocale } from "./quickStartTools";
 
 export type DocsSection =
@@ -165,8 +166,8 @@ export function buildGuides(baseUrl: string, locale: DocsLocale): GuideSpec[] {
       section: "development",
       title: c("第一个 SDK 请求", "Your first SDK request"),
       summary: c(
-        "在服务端设置 CODEX2API_KEY，使用当前实例的 /v1 地址。",
-        "Set CODEX2API_KEY on your server and use this instance's /v1 URL.",
+        "在服务端设置 TIDEPOOL_API_KEY，使用当前实例的 /v1 地址。",
+        "Set TIDEPOOL_API_KEY on your server and use this instance's /v1 URL.",
       ),
       paragraphs: [
         c(
@@ -178,12 +179,12 @@ export function buildGuides(baseUrl: string, locale: DocsLocale): GuideSpec[] {
         {
           label: "Python · Responses",
           lang: "python",
-          content: `import os\nfrom openai import OpenAI\n\nclient = OpenAI(\n    api_key=os.environ["CODEX2API_KEY"],\n    base_url=${JSON.stringify(`${base}/v1`)},\n)\nresponse = client.responses.create(\n    model="gpt-5.5", input="Say hello in one sentence.", stream=False,\n)\nprint(response.output_text)`,
+          content: `import os\nfrom openai import OpenAI\n\nclient = OpenAI(\n    api_key=os.environ["TIDEPOOL_API_KEY"],\n    base_url=${JSON.stringify(`${base}/v1`)},\n)\nresponse = client.responses.create(\n    model="gpt-5.5", input="Say hello in one sentence.", stream=False,\n)\nprint(response.output_text)`,
         },
         {
           label: "Node.js · Responses",
           lang: "javascript",
-          content: `import OpenAI from "openai";\n\nconst client = new OpenAI({\n  apiKey: process.env.CODEX2API_KEY,\n  baseURL: ${JSON.stringify(`${base}/v1`)},\n});\nconst response = await client.responses.create({\n  model: "gpt-5.5", input: "Say hello in one sentence.", stream: false,\n});\nconsole.log(response.output_text);`,
+          content: `import OpenAI from "openai";\n\nconst client = new OpenAI({\n  apiKey: process.env.TIDEPOOL_API_KEY,\n  baseURL: ${JSON.stringify(`${base}/v1`)},\n});\nconst response = await client.responses.create({\n  model: "gpt-5.5", input: "Say hello in one sentence.", stream: false,\n});\nconsole.log(response.output_text);`,
         },
       ],
       links: [
@@ -576,11 +577,11 @@ export function buildGuides(baseUrl: string, locale: DocsLocale): GuideSpec[] {
         { label: c("系统设置", "Settings"), href: "/admin/settings" },
         {
           label: c("完整 API 文档", "Full API reference"),
-          href: "https://github.com/james-6-23/codex2api/blob/main/docs/API.md",
+          href: `${PROJECT_REPO_URL}/blob/${PROJECT_DOCS_BRANCH}/docs/API.md`,
         },
         {
           label: c("部署与故障排查", "Deployment & troubleshooting"),
-          href: "https://github.com/james-6-23/codex2api/blob/main/docs/TROUBLESHOOTING.md",
+          href: `${PROJECT_REPO_URL}/blob/${PROJECT_DOCS_BRANCH}/docs/TROUBLESHOOTING.md`,
         },
       ],
     },

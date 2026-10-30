@@ -140,7 +140,7 @@ func buildAntigravityExportZIP(entries []antigravityExportEntry) ([]byte, error)
 }
 
 func antigravityExportDownloadName(count int, extension string) string {
-	return fmt.Sprintf("codex2api-antigravity-%s-%d.%s", time.Now().UTC().Format("20060102-150405"), count, extension)
+	return fmt.Sprintf("tidepool-antigravity-%s-%d.%s", time.Now().UTC().Format("20060102-150405"), count, extension)
 }
 
 // writeSecretResponseHeaders marks a response as secret-bearing so it is never

@@ -1,6 +1,6 @@
-<p align="center">
-  <img src="assets/banner.svg" alt="Codex2API" width="100%">
-</p>
+<h1 align="center">Tidepool</h1>
+
+<p align="center"><i>多渠道 AI 账号池与网关</i></p>
 
 <p align="center">
   <a href="README.md">English</a> | <b>中文</b>
@@ -17,7 +17,7 @@
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
 </p>
 
-**把 Codex 账号池变成可观测、可调度、可运维的 OpenAI / Anthropic 兼容网关。** Codex2API 不是一个薄转发层，而是一套面向长期运行的 Codex 接入中枢：对外提供 `/v1/chat/completions`、`/v1/responses`、`/v1/messages`、Images 和 Models 等接口，对内维护 Refresh Token / Access Token 账号池、健康度评分、动态并发、限流恢复、用量统计和后台运维。
+**把 Codex 账号池变成可观测、可调度、可运维的 OpenAI / Anthropic 兼容网关。** Tidepool 不是一个薄转发层，而是一套面向长期运行的 Codex 接入中枢：对外提供 `/v1/chat/completions`、`/v1/responses`、`/v1/messages`、Images 和 Models 等接口，对内维护 Refresh Token / Access Token 账号池、健康度评分、动态并发、限流恢复、用量统计和后台运维。
 
 它可以跑在完整的 **PostgreSQL + Redis** 生产形态，也可以用 **SQLite + 内存缓存** 单容器轻量部署。你可以把它接到 Codex CLI、Claude Code、OpenAI SDK 或任何兼容客户端上，用一个统一 Base URL 管理多账号、代理池、API Key、Prompt 检查、生图工作台和运行时配置。
 
@@ -31,54 +31,11 @@
 
 ---
 
-## 赞助商
-
-<p align="center">
-  <a href="https://proxylane.dev/?r=r4zpan9djwesjumv0vamthoz&amp;utm_source=codex2api&amp;utm_medium=partnership&amp;utm_campaign=codex2api_sponsor_202610&amp;utm_content=github_readme"><img src="assets/proxylane-banner.png" alt="ProxyLane 住宅代理：首单七折 CODEX2API30" width="100%"></a>
-</p>
-
-<p align="center">
-  <b><a href="https://proxylane.dev/?r=r4zpan9djwesjumv0vamthoz&amp;utm_source=codex2api&amp;utm_medium=partnership&amp;utm_campaign=codex2api_sponsor_202610&amp;utm_content=github_readme">ProxyLane</a></b> 提供住宅代理，支持 HTTP / HTTPS / SOCKS5，提供中文界面及 USDT 付款。<br>
-  免费 3GB 测试流量，限前 50 名，兑换码：<code>CODEX2API3GB</code>。<br>
-  首次购买使用优惠码 <code>CODEX2API30</code> 享七折优惠。
-</p>
-
-<p align="center">
-  <a href="https://www.rapidproxy.io/?ref=codex2api"><img src="assets/rapidproxy-banner.png" alt="RapidProxy 代理 IP：动态住宅 $0.55/GB 起，静态住宅 $5/IP/月" width="100%"></a>
-</p>
-
-<p align="center">
-  <b><a href="https://www.rapidproxy.io/?ref=codex2api">RapidProxy</a></b> 为开发者和企业提供高性能代理 IP 服务，覆盖全球 200+ 国家和地区的 9000 万+ 住宅 IP，支持智能轮换、精准地理定位、流量永不过期及高并发连接。<br>
-  广泛适用于网页采集、AI 数据获取、SEO 监控和电商分析，支持 HTTP / HTTPS / SOCKS5 协议。<br>
-  支持免费试用，九折优惠码：<code>RAPID10</code>
-</p>
-
-<p align="center">
-  <a href="https://www.ipwo.net/?ref=githubcodex2api"><img src="assets/ipwo-banner.webp" alt="IPWO 住宅代理" width="100%"></a>
-</p>
-
-<p align="center">
-  <b><a href="https://www.ipwo.net/?ref=githubcodex2api">IPWO</a></b> 提供覆盖 195+ 地区的住宅代理 IP 资源，支持动态、静态及不限量住宅代理方案。<br>
-  可用于区域化访问测试、网页数据采集和跨境业务等场景，支持 HTTP / HTTPS / SOCKS5 协议。<br>
-  支持免费测试，九折优惠码：<code>0203</code>
-</p>
-
----
-
-## 在线 Demo
-
-- Demo 地址：[https://codex2api-latest-vu8j.onrender.com](https://codex2api-latest-vu8j.onrender.com)
-- Demo 密码：`codex2api`
-
-> Demo 环境仅用于体验管理后台界面和基础功能，请勿上传真实 Refresh Token、Access Token、API Key 或其他敏感信息。
-
----
-
 ## 界面预览
 
 > 以下截图使用演示数据，实际页面会随账号池、请求日志和运行环境变化。
 
-![CodexProxy 仪表盘](docs/screenshots/dashboard.png)
+![Tidepool 仪表盘](docs/screenshots/dashboard.png)
 
 <details>
 <summary>查看更多后台界面</summary>
@@ -105,8 +62,6 @@
 
 ## 目录
 
-- [赞助商](#赞助商)
-- [在线 Demo](#在线-demo)
 - [界面预览](#界面预览)
 - [快速部署](#快速部署)
   - [一键交互部署 (推荐)](#一键交互部署-推荐)
@@ -119,16 +74,16 @@
 - [核心能力](#核心能力)
 - [目录结构](#目录结构)
 - [常见注意事项](#常见注意事项)
-- [交流群](#交流群)
 - [免责声明](#免责声明与开源协议)
-- [Star History](#star-history)
-- [友情链接](#友情链接)
+- [致谢](#致谢)
 
 ---
 
 ## 快速部署
 
 > 详细部署指南请参考：[DEPLOYMENT.md](docs/DEPLOYMENT.md)
+>
+> Tidepool 预构建镜像发布为 `ghcr.io/xixiknow/codex2api:xixi`（最新正式版）和 `ghcr.io/xixiknow/codex2api:<版本号>`。使用镜像模式时，请确认 `docker-compose.yml` / `docker-compose.sqlite.yml` 中 `codex2api` 服务的 `image:` 指向这里。
 
 ### 一键交互部署 (推荐)
 
@@ -141,7 +96,7 @@
 **场景 1：尚未克隆仓库（一行远程拉起）**
 
 ```bash
-bash <(curl -sSL https://raw.githubusercontent.com/james-6-23/codex2api/main/deploy.sh)
+CODEX2API_REPO_URL=https://github.com/xixiknow/codex2api.git CODEX2API_REPO_BRANCH=xixi-main \n  bash <(curl -sSL https://raw.githubusercontent.com/xixiknow/codex2api/xixi-main/deploy.sh)
 ```
 
 脚本会自动检测当前目录是否是 `codex2api` 仓库，若不是则克隆到 `./codex2api`，进入目录后再执行部署。
@@ -149,7 +104,7 @@ bash <(curl -sSL https://raw.githubusercontent.com/james-6-23/codex2api/main/dep
 **场景 2：已经 `git clone` 到本地**
 
 ```bash
-git clone https://github.com/james-6-23/codex2api.git
+git clone https://github.com/xixiknow/codex2api.git
 cd codex2api
 bash deploy.sh
 ```
@@ -165,10 +120,10 @@ bash deploy.sh
 
 **可选环境变量**（用于自定义自举行为）
 
-| 变量 | 默认 | 说明 |
+| 变量 | 取值 | 说明 |
 | --- | --- | --- |
-| `CODEX2API_REPO_URL` | `https://github.com/james-6-23/codex2api.git` | 克隆使用的仓库地址 |
-| `CODEX2API_REPO_BRANCH` | `main` | 克隆使用的分支 |
+| `CODEX2API_REPO_URL` | `https://github.com/xixiknow/codex2api.git` | 克隆使用的仓库地址（上面的一行命令已设置） |
+| `CODEX2API_REPO_BRANCH` | `xixi-main` | 克隆使用的分支（上面的一行命令已设置） |
 | `CODEX2API_DIR_NAME` | `codex2api` | 克隆到本地的目录名 |
 | `CODEX2API_SKIP_GIT_PULL` | 空 | 设为 `1` 或 `true` 时跳过部署前自动拉取最新代码 |
 
@@ -187,7 +142,7 @@ bash deploy.sh
 标准镜像版：
 
 ```bash
-git clone https://github.com/james-6-23/codex2api.git
+git clone https://github.com/xixiknow/codex2api.git
 cd codex2api
 cp .env.example .env
 docker compose pull
@@ -453,7 +408,7 @@ curl -X POST http://localhost:8080/api/admin/accounts/import \
 
 #### OAuth PKCE 授权
 
-Codex2API 支持通过 OAuth PKCE 流程获取 Refresh Token，适用于无法手动提取 Token 的场景：
+Tidepool 支持通过 OAuth PKCE 流程获取 Refresh Token，适用于无法手动提取 Token 的场景：
 
 ```bash
 # 步骤 1：生成授权 URL
@@ -533,7 +488,7 @@ curl -X POST http://localhost:8080/api/admin/oauth/exchange-code \
 4. 先按 `SchedulerPriority` 从高到低分层，再按 `healthy > warm > risky > banned` 排序；同优先级、同层级内按调度分和并发数择优
 5. 15% 概率随机打散，降低热点与饥饿
 
-多个最终用户共享同一个下游 API Key 时，可传 `X-Codex2API-Affinity-Key` 作为稳定的用户或对话标识。Codex2API 只将其哈希后用于本地账号亲和，不会转发给上游。
+多个最终用户共享同一个下游 API Key 时，可传 `X-Codex2API-Affinity-Key` 作为稳定的用户或对话标识。Tidepool 只将其哈希后用于本地账号亲和，不会转发给上游。
 
 **动态并发规则：**
 
@@ -630,35 +585,14 @@ codex2api/
 
 ---
 
-## 交流群
-
-- QQ 交流群：[点击链接加入群聊【codex2api】](https://qun.qq.com/universal-share/share?ac=1&authKey=6vwawW4MeqdACT7PajnHlf2lLkjfuNXEMSos67l9FBiAJ8t%2BKeaXJXB0dgsnhFa1&busi_data=eyJncm91cENvZGUiOiI4MTY3Mzk4NDIiLCJ0b2tlbiI6ImU1YW1KR3dNaXZoUXZDUWpYTWVncmdmMXhQV1RwQ21tbEhkdjB5VW45aWVPSjhFM2grMkRHNGdhWnhEU29oS08iLCJ1aW4iOiIxMTYzNDc2OTQ5In0%3D&data=adSomD6r40Al25rBr8PocFCKumQR5oxi1kq5jXjXxeJ49Z5cj4QLzbNf6vfIQKWMORrJntrZtcoyQuHg2ksUeA&svctype=4&tempid=h5_group_info)（群号：816739842）
-- Telegram 群组：[加入 Telegram 群组](https://t.me/+9hJAA3ZWQxxmMzE5)
-
-欢迎加群交流部署、使用与二次开发相关问题。
-
----
-
 ## 免责声明与开源协议
 
 - 本项目仅供学习、研究与技术交流使用。
-- 本项目采用 `MIT License` 开源协议。
+- 本项目采用 [MIT License](LICENSE) 开源协议。
 - 项目不对任何直接或间接使用后果提供担保；生产环境使用风险由使用者自行承担。
 
 ---
 
-## Star History
+## 致谢
 
-<a href="https://star-history.dera.page/#james-6-23/codex2api&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=james-6-23/codex2api&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=james-6-23/codex2api&type=Date" />
-    <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=james-6-23/codex2api&type=Date" />
-  </picture>
-</a>
-
----
-
-## 友情链接
-
-- [LINUX DO](https://linux.do/)
+本项目基于 [codex2api](https://github.com/james-6-23/codex2api)（MIT）开发。

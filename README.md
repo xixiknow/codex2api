@@ -1,6 +1,6 @@
-<p align="center">
-  <img src="assets/banner.svg" alt="Codex2API" width="100%">
-</p>
+<h1 align="center">Tidepool</h1>
+
+<p align="center"><i>A multi-channel AI account pool and gateway</i></p>
 
 <p align="center">
   <b>English</b> | <a href="README.zh-CN.md">中文</a>
@@ -17,7 +17,7 @@
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
 </p>
 
-**Turn a Codex account pool into an observable, schedulable, operations-ready OpenAI / Anthropic compatible gateway.** Codex2API is not a thin forwarding proxy. It is a long-running Codex access hub: it exposes `/v1/chat/completions`, `/v1/responses`, `/v1/messages`, Images, Videos (Grok Imagine), and Models endpoints while managing Refresh Token / Access Token accounts, health scoring, dynamic concurrency, rate-limit recovery, usage tracking, and admin operations behind the scenes.
+**Turn a Codex account pool into an observable, schedulable, operations-ready OpenAI / Anthropic compatible gateway.** Tidepool is not a thin forwarding proxy. It is a long-running Codex access hub: it exposes `/v1/chat/completions`, `/v1/responses`, `/v1/messages`, Images, Videos (Grok Imagine), and Models endpoints while managing Refresh Token / Access Token accounts, health scoring, dynamic concurrency, rate-limit recovery, usage tracking, and admin operations behind the scenes.
 
 Run it as a full **PostgreSQL + Redis** production stack or as a single-container **SQLite + in-memory cache** deployment. Point Codex CLI, Claude Code, the OpenAI SDK, or any compatible client at one Base URL, then manage accounts, proxies, API keys, prompt filtering, image workflows, and runtime settings from the built-in dashboard.
 
@@ -32,54 +32,11 @@ Run it as a full **PostgreSQL + Redis** production stack or as a single-containe
 
 ---
 
-## Sponsors
-
-<p align="center">
-  <a href="https://proxylane.dev/?r=r4zpan9djwesjumv0vamthoz&amp;utm_source=codex2api&amp;utm_medium=partnership&amp;utm_campaign=codex2api_sponsor_202610&amp;utm_content=github_readme"><img src="assets/proxylane-banner.png" alt="ProxyLane 住宅代理：首单七折 CODEX2API30" width="100%"></a>
-</p>
-
-<p align="center">
-  <b><a href="https://proxylane.dev/?r=r4zpan9djwesjumv0vamthoz&amp;utm_source=codex2api&amp;utm_medium=partnership&amp;utm_campaign=codex2api_sponsor_202610&amp;utm_content=github_readme">ProxyLane</a></b> 提供住宅代理，支持 HTTP / HTTPS / SOCKS5，提供中文界面及 USDT 付款。<br>
-  免费 3GB 测试流量，限前 50 名，兑换码：<code>CODEX2API3GB</code>。<br>
-  首次购买使用优惠码 <code>CODEX2API30</code> 享七折优惠。
-</p>
-
-<p align="center">
-  <a href="https://www.rapidproxy.io/?ref=codex2api"><img src="assets/rapidproxy-banner.png" alt="RapidProxy 代理 IP：动态住宅 $0.55/GB 起，静态住宅 $5/IP/月" width="100%"></a>
-</p>
-
-<p align="center">
-  <b><a href="https://www.rapidproxy.io/?ref=codex2api">RapidProxy</a></b> 为开发者和企业提供高性能代理 IP 服务，覆盖全球 200+ 国家和地区的 9000 万+ 住宅 IP，支持智能轮换、精准地理定位、流量永不过期及高并发连接。<br>
-  广泛适用于网页采集、AI 数据获取、SEO 监控和电商分析，支持 HTTP / HTTPS / SOCKS5 协议。<br>
-  支持免费试用，九折优惠码：<code>RAPID10</code>
-</p>
-
-<p align="center">
-  <a href="https://www.ipwo.net/?ref=githubcodex2api"><img src="assets/ipwo-banner.webp" alt="IPWO 住宅代理" width="100%"></a>
-</p>
-
-<p align="center">
-  <b><a href="https://www.ipwo.net/?ref=githubcodex2api">IPWO</a></b> 提供覆盖 195+ 地区的住宅代理 IP 资源，支持动态、静态及不限量住宅代理方案。<br>
-  可用于区域化访问测试、网页数据采集和跨境业务等场景，支持 HTTP / HTTPS / SOCKS5 协议。<br>
-  支持免费测试，九折优惠码：<code>0203</code>
-</p>
-
----
-
-## Live Demo
-
-- Demo URL: [https://codex2api-latest-vu8j.onrender.com](https://codex2api-latest-vu8j.onrender.com)
-- Demo password: `codex2api`
-
-> The demo is only for trying the admin dashboard and basic UI flows. Do not upload real Refresh Tokens, Access Tokens, API keys, or any other sensitive data.
-
----
-
 ## Screenshots
 
 > Screenshots use demo data. The actual dashboard depends on your account pool, request logs, and runtime environment.
 
-![CodexProxy Dashboard](docs/screenshots/dashboard.png)
+![Tidepool Dashboard](docs/screenshots/dashboard.png)
 
 <details>
 <summary>More admin dashboard screenshots</summary>
@@ -106,8 +63,6 @@ Run it as a full **PostgreSQL + Redis** production stack or as a single-containe
 
 ## Contents
 
-- [Sponsors](#sponsors)
-- [Live Demo](#live-demo)
 - [Screenshots](#screenshots)
 - [Quick Start](#quick-start)
 - [Documentation](#documentation)
@@ -119,16 +74,16 @@ Run it as a full **PostgreSQL + Redis** production stack or as a single-containe
 - [Core Capabilities](#core-capabilities)
 - [Project Structure](#project-structure)
 - [Notes](#notes)
-- [Community](#community)
 - [Disclaimer and License](#disclaimer-and-license)
-- [Star History](#star-history)
-- [Links](#links)
+- [Credits](#credits)
 
 ---
 
 ## Quick Start
 
 > For detailed deployment instructions, see [DEPLOYMENT.md](docs/DEPLOYMENT.md).
+>
+> Prebuilt Tidepool images are published as `ghcr.io/xixiknow/codex2api:xixi` (latest release) and `ghcr.io/xixiknow/codex2api:<version>`. For image mode, make sure the `image:` of the `codex2api` service in `docker-compose.yml` / `docker-compose.sqlite.yml` points there.
 
 ### Deployment Modes
 
@@ -145,7 +100,7 @@ Run it as a full **PostgreSQL + Redis** production stack or as a single-containe
 Standard image mode:
 
 ```bash
-git clone https://github.com/james-6-23/codex2api.git
+git clone https://github.com/xixiknow/codex2api.git
 cd codex2api
 cp .env.example .env
 docker compose pull
@@ -407,7 +362,7 @@ Import endpoints deduplicate tokens automatically. Existing tokens are not inser
 
 #### OAuth PKCE Authorization
 
-Codex2API supports acquiring Refresh Tokens through the OAuth PKCE flow, useful when manual token extraction is impractical:
+Tidepool supports acquiring Refresh Tokens through the OAuth PKCE flow, useful when manual token extraction is impractical:
 
 ```bash
 # Step 1: Generate an authorization URL
@@ -454,7 +409,7 @@ Open `/admin/` in a browser.
 
 ### Positioning
 
-Codex2API is not just a forwarding proxy. It is a long-running Codex gateway with a full admin dashboard:
+Tidepool is not just a forwarding proxy. It is a long-running Codex gateway with a full admin dashboard:
 
 - Exposes a unified OpenAI-style API surface.
 - Maintains a Refresh Token account pool and Access Token lifecycle.
@@ -495,7 +450,7 @@ Selection strategy:
 4. Prefer higher `SchedulerPriority`, then `healthy > warm > risky > banned`; within the same priority and tier, prefer higher score and lower concurrency.
 5. In indexed mode, use a per-tier cursor or deterministic affinity offset inside the highest valid priority/health segment.
 
-When multiple end users share one downstream API key, send `X-Codex2API-Affinity-Key` with a stable user or conversation identifier. Codex2API hashes it for local account affinity only and never forwards it upstream.
+When multiple end users share one downstream API key, send `X-Codex2API-Affinity-Key` with a stable user or conversation identifier. Tidepool hashes it for local account affinity only and never forwards it upstream.
 
 Concurrency rules:
 
@@ -580,35 +535,14 @@ codex2api/
 
 ---
 
-## Community
-
-- QQ group: [Join the "codex2api" group chat](https://qun.qq.com/universal-share/share?ac=1&authKey=6vwawW4MeqdACT7PajnHlf2lLkjfuNXEMSos67l9FBiAJ8t%2BKeaXJXB0dgsnhFa1&busi_data=eyJncm91cENvZGUiOiI4MTY3Mzk4NDIiLCJ0b2tlbiI6ImU1YW1KR3dNaXZoUXZDUWpYTWVncmdmMXhQV1RwQ21tbEhkdjB5VW45aWVPSjhFM2grMkRHNGdhWnhEU29oS08iLCJ1aW4iOiIxMTYzNDc2OTQ5In0%3D&data=adSomD6r40Al25rBr8PocFCKumQR5oxi1kq5jXjXxeJ49Z5cj4QLzbNf6vfIQKWMORrJntrZtcoyQuHg2ksUeA&svctype=4&tempid=h5_group_info) (group ID: 816739842)
-- Telegram group: [Join the Telegram group](https://t.me/+9hJAA3ZWQxxmMzE5)
-
-Join the group to discuss deployment, usage, and development questions.
-
----
-
 ## Disclaimer and License
 
 - This project is for learning, research, and technical discussion only.
-- This project is released under the `MIT License`.
+- This project is released under the [MIT License](LICENSE).
 - The project provides no warranty for direct or indirect consequences. Production use is at your own risk.
 
 ---
 
-## Star History
+## Credits
 
-<a href="https://star-history.dera.page/#james-6-23/codex2api&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=james-6-23/codex2api&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=james-6-23/codex2api&type=Date" />
-    <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=james-6-23/codex2api&type=Date" />
-  </picture>
-</a>
-
----
-
-## Links
-
-- [LINUX DO](https://linux.do/)
+Based on [codex2api](https://github.com/james-6-23/codex2api) (MIT).

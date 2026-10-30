@@ -12,6 +12,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { api } from '../api'
+import { useBranding } from '../branding'
 import { useConfirmDialog } from '../hooks/useConfirmDialog'
 import { useToast } from '../hooks/useToast'
 import type {
@@ -90,15 +91,16 @@ function BindingFormFields({
   apiKeys: APIKeyRow[]
   editing: boolean
 }) {
+  const { siteName } = useBranding()
   return (
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="space-y-1.5 sm:col-span-2">
-          <span className="text-sm font-medium">Codex2API Key</span>
+          <span className="text-sm font-medium">{siteName} Key</span>
           <Select
             value={form.apiKeyId}
             disabled={editing}
-            placeholder="选择用于接入的 Codex2API Key"
+            placeholder={`选择用于接入的 ${siteName} Key`}
             onValueChange={(apiKeyId) => setForm({ ...form, apiKeyId })}
             options={apiKeys.map((apiKey) => ({ value: String(apiKey.id), label: apiKeyLabel(apiKey) }))}
           />
@@ -163,6 +165,7 @@ function BindingFormFields({
 }
 
 export default function PromptFilterNewAPIBindings() {
+  const { siteName } = useBranding()
   const [apiKeys, setAPIKeys] = useState<APIKeyRow[]>([])
   const [bindings, setBindings] = useState<PromptFilterNewAPIBinding[]>([])
   const [loading, setLoading] = useState(true)
@@ -236,7 +239,7 @@ export default function PromptFilterNewAPIBindings() {
   const createBinding = async () => {
     const apiKeyId = Number(createForm.apiKeyId)
     if (!Number.isInteger(apiKeyId) || apiKeyId <= 0 || !createForm.platformCode.trim()) {
-      showToast('请选择 Codex2API Key，并填写调用方代码。', 'error')
+      showToast(`请选择 ${siteName} Key，并填写调用方代码。`, 'error')
       return
     }
     if (createForm.promptFilterScope === 'off') {
@@ -275,7 +278,7 @@ export default function PromptFilterNewAPIBindings() {
         title: '确认开启强制签名身份？',
         description: (
           <span>
-            必须先在“{editForm.platformName.trim() || editForm.platformCode.trim()}”对应的 NewAPI 配置此绑定的密钥；否则开启后，该 Codex2API Key 的请求会立即返回 401。签名失败属于身份校验错误，不会记为 Prompt 违规，也不会触发违规处罚。
+            必须先在“{editForm.platformName.trim() || editForm.platformCode.trim()}”对应的 NewAPI 配置此绑定的密钥；否则开启后，该 {siteName} Key 的请求会立即返回 401。签名失败属于身份校验错误，不会记为 Prompt 违规，也不会触发违规处罚。
           </span>
         ),
         confirmText: '已配置，确认开启',
@@ -382,10 +385,10 @@ export default function PromptFilterNewAPIBindings() {
           <div>
             <div className="flex items-center gap-2">
               <KeyRound className="size-5 text-primary" />
-              <h4 id="newapi-key-bindings-title" className="text-sm font-semibold">按 Codex2API Key 绑定审计身份</h4>
+              <h4 id="newapi-key-bindings-title" className="text-sm font-semibold">按 {siteName} Key 绑定审计身份</h4>
             </div>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              将签名身份与实际请求使用的 Codex2API Key 对应起来，并可为指定 Key 缩小 Prompt 检查范围。
+              将签名身份与实际请求使用的 {siteName} Key 对应起来，并可为指定 Key 缩小 Prompt 检查范围。
               全局阈值和审核档位仍由 GuardPipeline 管理，调用方不能通过请求头或元数据修改此策略。
             </p>
           </div>
@@ -439,7 +442,7 @@ export default function PromptFilterNewAPIBindings() {
                 <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2.5 font-medium">调用方</th>
-                    <th className="px-3 py-2.5 font-medium">Codex2API Key</th>
+                    <th className="px-3 py-2.5 font-medium">{siteName} Key</th>
                     <th className="px-3 py-2.5 font-medium">状态</th>
                     <th className="px-3 py-2.5 font-medium">绑定密钥</th>
                     <th className="px-3 py-2.5 font-medium">更新时间</th>
@@ -509,7 +512,7 @@ export default function PromptFilterNewAPIBindings() {
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>新增 Key 审计身份绑定</DialogTitle>
-            <DialogDescription>选择请求实际使用的 Codex2API Key。保存后系统自动生成绑定密钥，并只展示一次。</DialogDescription>
+            <DialogDescription>选择请求实际使用的 {siteName} Key。保存后系统自动生成绑定密钥，并只展示一次。</DialogDescription>
           </DialogHeader>
           <BindingFormFields form={createForm} setForm={setCreateForm} apiKeys={availableAPIKeys} editing={false} />
           <DialogFooter>
@@ -574,7 +577,7 @@ export default function PromptFilterNewAPIBindings() {
         >
           <DialogHeader>
             <DialogTitle>{secretReveal?.platformName} 绑定密钥</DialogTitle>
-            <DialogDescription>密钥已经保存到 Codex2API 数据库，但明文只在本次响应中展示。列表不会再次回显。</DialogDescription>
+            <DialogDescription>密钥已经保存到 {siteName} 数据库，但明文只在本次响应中展示。列表不会再次回显。</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="flex gap-2">

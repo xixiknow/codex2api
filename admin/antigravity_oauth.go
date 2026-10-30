@@ -382,11 +382,11 @@ func antigravityOAuthCallbackURLMatches(session *antigravityOAuthSession, u *url
 func writeAntigravityOAuthHTML(w http.ResponseWriter, success bool) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if success {
-		_, _ = w.Write([]byte(`<!doctype html><meta charset="utf-8"><title>Authorization complete</title><body style="font-family:sans-serif;text-align:center;padding:4rem"><h1>授权成功</h1><p>可以关闭此窗口并返回 codex2api。</p></body>`))
+		_, _ = w.Write([]byte(`<!doctype html><meta charset="utf-8"><title>Authorization complete</title><body style="font-family:sans-serif;text-align:center;padding:4rem"><h1>授权成功</h1><p>可以关闭此窗口并返回 Tidepool。</p></body>`))
 		return
 	}
 	w.WriteHeader(http.StatusBadRequest)
-	_, _ = w.Write([]byte(`<!doctype html><meta charset="utf-8"><title>Authorization failed</title><body style="font-family:sans-serif;text-align:center;padding:4rem"><h1>授权未完成</h1><p>请返回 codex2api 重试。</p></body>`))
+	_, _ = w.Write([]byte(`<!doctype html><meta charset="utf-8"><title>Authorization failed</title><body style="font-family:sans-serif;text-align:center;padding:4rem"><h1>授权未完成</h1><p>请返回 Tidepool 重试。</p></body>`))
 }
 
 type antigravityOAuthCompleteRequest struct {

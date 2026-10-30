@@ -2,7 +2,7 @@
 
 最后更新：2026-10-18
 
-本文说明 Codex2API 的可选 Codex Multi-Agent v2 明文兼容层。它解决的是：GPT 父 Agent 在 v2 下把任务交给第三方子模型（例如 DeepSeek）时，子 Agent 能创建、能回消息，却反复表示“没有收到具体任务”。
+本文说明 Tidepool 的可选 Codex Multi-Agent v2 明文兼容层。它解决的是：GPT 父 Agent 在 v2 下把任务交给第三方子模型（例如 DeepSeek）时，子 Agent 能创建、能回消息，却反复表示“没有收到具体任务”。
 
 ## 结论与边界
 
@@ -225,7 +225,7 @@ OpenAI Codex：
 - [Issue #36586](https://github.com/openai/codex/issues/36586)：Subagent task payload invisible to custom non-OpenAI providers
 - [Issue #46939](https://github.com/openai/codex/issues/46939)：Add a config option to select plaintext delivery
 
-codex2api：
+上游 codex2api：
 
 - [Issue #342](https://github.com/james-6-23/codex2api/issues/342)：reserved `collaboration.spawn_agent` schema 报错
 - [Issue #741](https://github.com/james-6-23/codex2api/issues/741) / [PR #742](https://github.com/james-6-23/codex2api/pull/742)：Codex 客户端工具和历史兼容

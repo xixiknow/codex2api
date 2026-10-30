@@ -1,6 +1,6 @@
-# Codex2API 文档索引
+# Tidepool 文档索引
 
-本文档目录包含 Codex2API 项目的完整文档。
+本文档目录包含 Tidepool 项目的完整文档。
 
 ## 文档列表
 

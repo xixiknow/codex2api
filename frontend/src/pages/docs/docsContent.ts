@@ -896,6 +896,7 @@ export function buildDocsMarkdown(args: {
   baseUrl: string;
   quickTools: QuickTool[];
   apiKeyExample: string;
+  siteName: string;
   locale?: DocsLocale;
   clientConfigs?: { label: string; lang: string; content: string }[];
 }): string {
@@ -903,6 +904,7 @@ export function buildDocsMarkdown(args: {
     baseUrl,
     quickTools,
     apiKeyExample,
+    siteName,
     locale = "zh",
     clientConfigs,
   } = args;
@@ -915,12 +917,12 @@ export function buildDocsMarkdown(args: {
       .map((tool) => ({
         label: tool.name,
         lang: tool.templateLang || "text",
-        content: resolveTemplate(tool, baseUrl, apiKeyExample),
+        content: resolveTemplate(tool, baseUrl, apiKeyExample, siteName),
       }));
   const block = (label: string, lang: string, content: string) =>
     `### ${label}\n\n\`\`\`${lang}\n${content}\n\`\`\``;
   return [
-    `# ${c("Codex2API 使用文档", "Codex2API documentation")}`,
+    `# ${c(`${siteName} 使用文档`, `${siteName} documentation`)}`,
     `> ${c("服务地址", "Service URL")}: ${baseUrl}`,
     `## ${c("快速接入", "Quick start")}`,
     c(

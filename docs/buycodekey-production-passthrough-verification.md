@@ -1,6 +1,6 @@
-# BuyCodeKey 到 Codex2API 生产透传修复与验收
+# BuyCodeKey 到 Tidepool 生产透传修复与验收
 
-本文用于修复和验证 BuyCodeKey NewAPI 到 Codex2API 的身份签名、用户画像、会话关联和上游账号审计链。命令默认通过既有 SSH 别名 `fr-netcup-new` 执行，不需要开放新的公网端口。
+本文用于修复和验证 BuyCodeKey NewAPI 到 Tidepool 的身份签名、用户画像、会话关联和上游账号审计链。命令默认通过既有 SSH 别名 `fr-netcup-new` 执行，不需要开放新的公网端口。
 
 ## 当前结论
 
@@ -9,7 +9,7 @@
 - 平台标识 `buycodekey`
 - NewAPI 用户 ID、用户名或邮箱、用户分组
 - NewAPI 请求 ID
-- Codex2API API Key 关联
+- Tidepool API Key 关联
 - Responses 与 Chat Completions 的签名身份
 
 仍需解决三个问题：
@@ -27,7 +27,7 @@
      -> 提取或恢复稳定 Session
      -> 生成唯一请求 ID
      -> 对身份和策略元数据分别签名
-  -> Codex2API
+  -> Tidepool
      -> 验证 API Key 对应的绑定密钥
      -> 执行 Prompt 防护
      -> 选择上游账号
@@ -35,7 +35,7 @@
      -> 更新用户、API Key、IP、Session 和上游账号画像
 ```
 
-职责边界：BuyCodeKey 负责调用方身份和 Session；Codex2API 负责实际选中的上游账号。BuyCodeKey 不应伪造或预测 Codex2API 的作用账号。
+职责边界：BuyCodeKey 负责调用方身份和 Session；Tidepool 负责实际选中的上游账号。BuyCodeKey 不应伪造或预测 Tidepool 的作用账号。
 
 ## 修改要求
 
@@ -54,7 +54,7 @@ BuyCodeKey 应按以下优先级提取稳定会话标识：
 
 ### 2. 回填作用账号名称
 
-Codex2API 在选择上游账号后已经持有 `account_id`。事件持久化前应使用该 ID 获取账号快照，并同时写入：
+Tidepool 在选择上游账号后已经持有 `account_id`。事件持久化前应使用该 ID 获取账号快照，并同时写入：
 
 - `account_id`
 - `account_name`
@@ -85,7 +85,7 @@ sudo systemctl reset-failed buycodekey-pond-new.service
 
 ### 4. 分阶段强制签名
 
-当前 BuyCodeKey 的绑定密钥与 Codex2API 接收端一致，但接收端仍允许未签名请求。完成下方验收并观察至少一个完整业务周期后，可将该绑定的 `require_signed_identity` 设为开启。
+当前 BuyCodeKey 的绑定密钥与 Tidepool 接收端一致，但接收端仍允许未签名请求。完成下方验收并观察至少一个完整业务周期后，可将该绑定的 `require_signed_identity` 设为开启。
 
 开启前必须确认所有实际入口都使用签名链路，包括 Responses、Chat Completions、SSE、WebSocket、multipart 和异步任务。否则强制签名会把尚未适配的协议直接拒绝。
 
@@ -195,7 +195,7 @@ curl --fail-with-body --max-time 60 \
 
 验收结果应为：前两次请求使用同一个 `session_hash`，第三次使用另一个 `session_hash`。
 
-## Codex2API 侧验收
+## Tidepool 侧验收
 
 ### 查看最近透传状态
 
@@ -280,7 +280,7 @@ ssh fr-netcup-new \
 
 ### `user_id=no` 或 `request_id=no`
 
-检查 BuyCodeKey 当前进程是否加载了 `CODEX2API_POLICY_ENABLED=true` 和正确的 Key 绑定。还要确认请求使用的实际 Codex2API Key 指纹与绑定一致。
+检查 BuyCodeKey 当前进程是否加载了 `CODEX2API_POLICY_ENABLED=true` 和正确的 Key 绑定。还要确认请求使用的实际 Tidepool Key 指纹与绑定一致。
 
 ### `session_id=no`
 
@@ -288,7 +288,7 @@ ssh fr-netcup-new \
 
 ### 签名身份存在但账号名称为空
 
-这是 Codex2API 上游账号快照回填问题，不应让 BuyCodeKey 传递账号名称。检查 incident 持久化时是否已经获得 `account_id`，并补充账号查询或后续 Usage 回填。
+这是 Tidepool 上游账号快照回填问题，不应让 BuyCodeKey 传递账号名称。检查 incident 持久化时是否已经获得 `account_id`，并补充账号查询或后续 Usage 回填。
 
 ### 13003 正常但 systemd 重启数持续增加
 

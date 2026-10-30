@@ -1,6 +1,6 @@
 # Responses 兼容性与验收边界
 
-Codex2API 的 Responses 入口同时服务 Codex 客户端、OpenAI SDK 和不同上游。兼容程度取决于实际选中的账号、协议及上游能力；模型名称、模型目录和 HTTP 200 都不能证明全部官方功能可用。
+Tidepool 的 Responses 入口同时服务 Codex 客户端、OpenAI SDK 和不同上游。兼容程度取决于实际选中的账号、协议及上游能力；模型名称、模型目录和 HTTP 200 都不能证明全部官方功能可用。
 
 ## 请求字段与严格模式
 
