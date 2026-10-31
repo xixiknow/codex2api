@@ -5,6 +5,7 @@ import test from 'node:test'
 import {
   CLAUDE_TIMEZONE_CUSTOM,
   claudeTimezoneLabel,
+  claudeTimezoneOffsetLabel,
   findClaudeTimezoneOption,
 } from './claudeAccountOptions.ts'
 
@@ -60,4 +61,16 @@ test('Claude import keeps bundle metadata and asks before inheriting a file prox
   assert.equal(claudeAccountsSource.includes('importProxyConfirmTitle'), true)
   assert.equal(claudeAccountsSource.includes('Array.isArray(parsed)'), true)
   assert.equal(claudeAccountsSource.includes('selectedGroupRefs'), true)
+})
+
+test('detected IANA zones outside the curated list get a readable offset label', () => {
+  assert.equal(claudeTimezoneOffsetLabel('Asia/Tokyo'), findClaudeTimezoneOption('Asia/Tokyo')?.label)
+  assert.equal(claudeTimezoneOffsetLabel('Asia/Kathmandu'), 'UTC+05:45 · Asia/Kathmandu')
+  assert.equal(claudeTimezoneOffsetLabel('Not/AZone'), 'Not/AZone')
+  assert.equal(claudeTimezoneOffsetLabel(''), '')
+})
+
+test('Claude add form detects the timezone from the selected proxy', () => {
+  assert.equal(claudeAccountsSource.includes('timezoneTouched'), true)
+  assert.equal(claudeAccountsSource.includes('res.timezone'), true)
 })

@@ -1796,5 +1796,7 @@ export interface ProxyTestResult {
   isp?: string
   latency_ms?: number
   location?: string
+  /** IANA timezone of the proxy exit IP (validated server-side). */
+  timezone?: string
   error?: string
 }

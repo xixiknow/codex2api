@@ -26,7 +26,7 @@ const (
 	proxyBatchTestMaxIDs      = 100
 	proxyBatchTestMaxBody     = 64 << 10
 	proxyProbeMaxBody         = 1 << 20
-	proxyProbeIPAPIFields     = "status,message,country,regionName,city,isp,query"
+	proxyProbeIPAPIFields     = "status,message,country,regionName,city,isp,query,timezone"
 )
 
 var (
@@ -46,7 +46,18 @@ type proxyProbeResult struct {
 	ISP        string `json:"isp,omitempty"`
 	LatencyMs  int    `json:"latency_ms,omitempty"`
 	Location   string `json:"location,omitempty"`
-	Error      string `json:"error,omitempty"`
+	// Timezone 是出口 IP 所在的 IANA 时区(已校验可加载),供账号表单按代理自动选时区。
+	Timezone string `json:"timezone,omitempty"`
+	Error    string `json:"error,omitempty"`
+}
+
+// proxyExitGeo 是按出口 IP 反查到的地理信息。
+type proxyExitGeo struct {
+	Country  string
+	Region   string
+	City     string
+	ISP      string
+	Timezone string
 }
 
 type proxyProbeConnectionState struct {
@@ -171,12 +182,13 @@ func probeProxyWithTimeout(
 		return primary
 	}
 
-	country, region, city, isp := proxyProbeLookupGeoFn(ctx, ipv6Result.IP, lang)
-	ipv6Result.Country = country
-	ipv6Result.Region = region
-	ipv6Result.City = city
-	ipv6Result.ISP = isp
-	ipv6Result.Location = joinProxyProbeLocation(country, region, city)
+	geo := proxyProbeLookupGeoFn(ctx, ipv6Result.IP, lang)
+	ipv6Result.Country = geo.Country
+	ipv6Result.Region = geo.Region
+	ipv6Result.City = geo.City
+	ipv6Result.ISP = geo.ISP
+	ipv6Result.Timezone = geo.Timezone
+	ipv6Result.Location = joinProxyProbeLocation(geo.Country, geo.Region, geo.City)
 	return ipv6Result
 }
 
@@ -296,7 +308,13 @@ func parseIPAPIProbeBody(body []byte, latencyMs int) proxyProbeResult {
 		ISP:        isp,
 		LatencyMs:  latencyMs,
 		Location:   joinProxyProbeLocation(country, region, city),
+		Timezone:   parseProxyProbeTimezone(result.Get("timezone").String()),
 	}
+}
+
+// parseProxyProbeTimezone 只接受本机可加载的 IANA 时区名,其余一律丢弃。
+func parseProxyProbeTimezone(value string) string {
+	return auth.NormalizeAccountTimezone(boundedProxyProbeField(value, 64))
 }
 
 func parseProxyProbeEchoBody(body []byte, latencyMs int) proxyProbeResult {
@@ -397,17 +415,17 @@ func proxyProbeErrorLooksLikeTargetUnreachable(message string) bool {
 	return false
 }
 
-func lookupProxyExitGeo(ctx context.Context, ip, lang string) (country, region, city, isp string) {
+func lookupProxyExitGeo(ctx context.Context, ip, lang string) proxyExitGeo {
 	if net.ParseIP(ip) == nil {
-		return "", "", "", ""
+		return proxyExitGeo{}
 	}
-	if country, region, city, isp, ok := fetchIPAPIGeo(ctx, ip, lang); ok {
-		return country, region, city, isp
+	if geo, ok := fetchIPAPIGeo(ctx, ip, lang); ok {
+		return geo
 	}
 	return fetchIPWhoisGeo(ctx, ip)
 }
 
-func fetchIPAPIGeo(ctx context.Context, ip, lang string) (country, region, city, isp string, ok bool) {
+func fetchIPAPIGeo(ctx context.Context, ip, lang string) (proxyExitGeo, bool) {
 	probeURL := fmt.Sprintf(
 		"http://ip-api.com/json/%s?lang=%s&fields=%s",
 		url.PathEscape(ip),
@@ -416,27 +434,44 @@ func fetchIPAPIGeo(ctx context.Context, ip, lang string) (country, region, city,
 	)
 	body, err := fetchProxyProbeGeoBody(ctx, probeURL)
 	if err != nil || !gjson.ValidBytes(body) {
-		return "", "", "", "", false
+		return proxyExitGeo{}, false
 	}
 	result := gjson.ParseBytes(body)
 	if result.Get("status").String() != "success" {
-		return "", "", "", "", false
+		return proxyExitGeo{}, false
 	}
-	country, region, city, isp = parseIPAPIGeoFields(result)
-	return country, region, city, isp, true
+	country, region, city, isp := parseIPAPIGeoFields(result)
+	return proxyExitGeo{
+		Country:  country,
+		Region:   region,
+		City:     city,
+		ISP:      isp,
+		Timezone: parseProxyProbeTimezone(result.Get("timezone").String()),
+	}, true
 }
 
-func fetchIPWhoisGeo(ctx context.Context, ip string) (country, region, city, isp string) {
+func fetchIPWhoisGeo(ctx context.Context, ip string) proxyExitGeo {
 	probeURL := "https://ipwho.is/" + url.PathEscape(ip)
 	body, err := fetchProxyProbeGeoBody(ctx, probeURL)
 	if err != nil || !gjson.ValidBytes(body) {
-		return "", "", "", ""
+		return proxyExitGeo{}
 	}
 	result := gjson.ParseBytes(body)
 	if !result.Get("success").Bool() {
-		return "", "", "", ""
+		return proxyExitGeo{}
 	}
-	return parseIPWhoisGeoFields(result)
+	return parseIPWhoisGeo(result)
+}
+
+func parseIPWhoisGeo(result gjson.Result) proxyExitGeo {
+	country, region, city, isp := parseIPWhoisGeoFields(result)
+	return proxyExitGeo{
+		Country:  country,
+		Region:   region,
+		City:     city,
+		ISP:      isp,
+		Timezone: parseProxyProbeTimezone(result.Get("timezone.id").String()),
+	}
 }
 
 func fetchProxyProbeGeoBody(ctx context.Context, probeURL string) ([]byte, error) {

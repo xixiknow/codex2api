@@ -47,3 +47,25 @@ export function claudeTimezoneLabel(value: string | null | undefined): string {
   if (!normalized) return ''
   return findClaudeTimezoneOption(normalized)?.label ?? normalized
 }
+
+/**
+ * Readable label for any IANA zone (e.g. one detected from a proxy exit IP that
+ * is not in the curated list): "UTC+09:00 · Asia/Tokyo". Falls back to the raw
+ * name when the runtime cannot resolve the zone.
+ */
+export function claudeTimezoneOffsetLabel(value: string | null | undefined): string {
+  const normalized = value?.trim() ?? ''
+  if (!normalized) return ''
+  const curated = findClaudeTimezoneOption(normalized)
+  if (curated) return curated.label
+  try {
+    const part = new Intl.DateTimeFormat('en-US', { timeZone: normalized, timeZoneName: 'longOffset' })
+      .formatToParts(new Date())
+      .find((item) => item.type === 'timeZoneName')?.value
+    if (!part) return normalized
+    const offset = part === 'GMT' ? 'UTC+00:00' : part.replace(/^GMT/, 'UTC').replace('-', '−')
+    return `${offset} · ${normalized}`
+  } catch {
+    return normalized
+  }
+}

@@ -511,11 +511,11 @@ func TestProbeProxyFallsBackToIPv6Echo(t *testing.T) {
 	oldEcho := proxyProbeIPv6EchoURLsFn
 	oldGeo := proxyProbeLookupGeoFn
 	proxyProbeIPv6EchoURLsFn = func() []string { return []string{echoURL} }
-	proxyProbeLookupGeoFn = func(_ context.Context, ip, lang string) (string, string, string, string) {
+	proxyProbeLookupGeoFn = func(_ context.Context, ip, lang string) proxyExitGeo {
 		if ip != "2605:1234:5678::1" || lang != "zh-CN" {
 			t.Fatalf("geo lookup ip=%q lang=%q", ip, lang)
 		}
-		return "美国", "新泽西", "纽瓦克", "Example ISP"
+		return proxyExitGeo{Country: "美国", Region: "新泽西", City: "纽瓦克", ISP: "Example ISP", Timezone: "America/New_York"}
 	}
 	t.Cleanup(func() {
 		proxyProbeIPv6EchoURLsFn = oldEcho
@@ -543,7 +543,7 @@ func TestProbeProxyFallsBackToIPv6Echo(t *testing.T) {
 	if !result.Success || !result.Conclusive || result.IP != "2605:1234:5678::1" {
 		t.Fatalf("probe result = %#v, want IPv6 fallback success", result)
 	}
-	if result.Location != "美国·新泽西·纽瓦克" || result.ISP != "Example ISP" {
+	if result.Location != "美国·新泽西·纽瓦克" || result.ISP != "Example ISP" || result.Timezone != "America/New_York" {
 		t.Fatalf("probe result = %#v, want gateway geo fields", result)
 	}
 }
@@ -559,11 +559,11 @@ func TestProbeProxyHTTPBadGatewayFallsBackToIPv6Echo(t *testing.T) {
 	oldEcho := proxyProbeIPv6EchoURLsFn
 	oldGeo := proxyProbeLookupGeoFn
 	proxyProbeIPv6EchoURLsFn = func() []string { return []string{echoURL} }
-	proxyProbeLookupGeoFn = func(_ context.Context, ip, lang string) (string, string, string, string) {
+	proxyProbeLookupGeoFn = func(_ context.Context, ip, lang string) proxyExitGeo {
 		if ip != "2605:1234:5678::1" || lang != "zh-CN" {
 			t.Fatalf("geo lookup ip=%q lang=%q", ip, lang)
 		}
-		return "美国", "加利福尼亚", "圣何塞", "Oracle Corporation"
+		return proxyExitGeo{Country: "美国", Region: "加利福尼亚", City: "圣何塞", ISP: "Oracle Corporation"}
 	}
 	t.Cleanup(func() {
 		proxyProbeIPv6EchoURLsFn = oldEcho
@@ -695,6 +695,21 @@ func TestParseProxyProbeGeoFields(t *testing.T) {
 	country, region, city, isp = parseIPWhoisGeoFields(gjson.Parse(`{"country":"United States","region":"New Jersey","city":"Newark","connection":{"isp":"Example ISP"}}`))
 	if country != "United States" || region != "New Jersey" || city != "Newark" || isp != "Example ISP" {
 		t.Fatalf("ipwhois geo = %q %q %q %q", country, region, city, isp)
+	}
+}
+
+func TestProxyProbeTimezoneParsing(t *testing.T) {
+	ok := parseIPAPIProbeBody([]byte(`{"status":"success","query":"1.2.3.4","country":"Japan","timezone":"Asia/Tokyo"}`), 10)
+	if !ok.Success || ok.Timezone != "Asia/Tokyo" {
+		t.Fatalf("ip-api probe = %#v, want Asia/Tokyo", ok)
+	}
+	bad := parseIPAPIProbeBody([]byte(`{"status":"success","query":"1.2.3.4","timezone":"Not/AZone"}`), 10)
+	if !bad.Success || bad.Timezone != "" {
+		t.Fatalf("ip-api probe = %#v, want invalid timezone dropped", bad)
+	}
+	geo := parseIPWhoisGeo(gjson.Parse(`{"country":"Germany","timezone":{"id":"Europe/Berlin"}}`))
+	if geo.Country != "Germany" || geo.Timezone != "Europe/Berlin" {
+		t.Fatalf("ipwhois geo = %#v, want Europe/Berlin", geo)
 	}
 }
 

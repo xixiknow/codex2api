@@ -114,6 +114,7 @@ import {
   CLAUDE_TIMEZONE_CUSTOM,
   CLAUDE_TIMEZONE_OPTIONS,
   claudeTimezoneLabel,
+  claudeTimezoneOffsetLabel,
   findClaudeTimezoneOption,
 } from "../lib/claudeAccountOptions";
 
@@ -3553,7 +3554,7 @@ function ClaudeAddModal({
   onClose: () => void;
   onAdded: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { showToast } = useToast();
   const { confirm, confirmDialog } = useConfirmDialog();
   const [tab, setTab] = useState<ClaudeAddTab>(initialTab);
@@ -3565,6 +3566,11 @@ function ClaudeAddModal({
   const [name, setName] = useState("");
   const [timezone, setTimezone] = useState("");
   const [timezoneCustom, setTimezoneCustom] = useState(false);
+  // 时区按代理出口自动选择:用户手动改过(timezoneTouched)后不再覆盖。
+  const [timezoneTouched, setTimezoneTouched] = useState(false);
+  const [timezoneDetect, setTimezoneDetect] = useState<"idle" | "detecting" | "done" | "failed">("idle");
+  const [detectedTimezone, setDetectedTimezone] = useState("");
+  const [detectedLocation, setDetectedLocation] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [groupIds, setGroupIds] = useState<Set<number>>(new Set());
 
@@ -3582,6 +3588,56 @@ function ClaudeAddModal({
   const [sessionKey, setSessionKey] = useState("");
   const [showSessionKey, setShowSessionKey] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 代理确定后(防抖)经该代理探测出口 IP 的 IANA 时区并自动填入;
+  // 代理池模式下出口未知、API Key 账号不绑定时区,均不探测。
+  const timezoneTouchedRef = useRef(timezoneTouched);
+  timezoneTouchedRef.current = timezoneTouched;
+  const detectedTimezoneRef = useRef(detectedTimezone);
+  detectedTimezoneRef.current = detectedTimezone;
+  useEffect(() => {
+    const url = proxyUrl.trim();
+    const clearAutoTimezone = () => {
+      const previous = detectedTimezoneRef.current;
+      setDetectedTimezone("");
+      setDetectedLocation("");
+      if (!timezoneTouchedRef.current && previous) {
+        setTimezone((current) => (current === previous ? "" : current));
+      }
+    };
+    if (useProxyPool || tab === "api_key" || !url.includes("://")) {
+      setTimezoneDetect("idle");
+      if (!url) clearAutoTimezone();
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      setTimezoneDetect("detecting");
+      try {
+        const lang = i18n.language?.startsWith("zh") ? "zh-CN" : "en";
+        const res = await api.testProxy(url, undefined, lang);
+        if (cancelled) return;
+        if (!res.success || !res.timezone) {
+          setTimezoneDetect("failed");
+          return;
+        }
+        const detected = res.timezone;
+        setDetectedTimezone(detected);
+        setDetectedLocation(res.location || [res.country, res.region, res.city].filter(Boolean).join(" "));
+        setTimezoneDetect("done");
+        if (!timezoneTouchedRef.current) {
+          setTimezone(detected);
+          setTimezoneCustom(false);
+        }
+      } catch {
+        if (!cancelled) setTimezoneDetect("failed");
+      }
+    }, 600);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [proxyUrl, useProxyPool, tab, i18n.language]);
 
   const toggleGroup = useCallback((id: number) => {
     setGroupIds((prev) => {
@@ -3871,8 +3927,12 @@ function ClaudeAddModal({
       {tab !== "api_key" ? (
       <div className="space-y-1">
         <Select
-          value={timezoneCustom ? CLAUDE_TIMEZONE_CUSTOM : (findClaudeTimezoneOption(timezone)?.value ?? (timezone.trim() ? CLAUDE_TIMEZONE_CUSTOM : ""))}
+          value={timezoneCustom
+            ? CLAUDE_TIMEZONE_CUSTOM
+            : (findClaudeTimezoneOption(timezone)?.value
+              ?? (timezone.trim() && timezone === detectedTimezone ? timezone : timezone.trim() ? CLAUDE_TIMEZONE_CUSTOM : ""))}
           onValueChange={(value) => {
+            setTimezoneTouched(true);
             if (value === CLAUDE_TIMEZONE_CUSTOM) {
               setTimezoneCustom(true);
               if (findClaudeTimezoneOption(timezone)) setTimezone("");
@@ -3884,11 +3944,33 @@ function ClaudeAddModal({
           options={[
             { value: "", label: t("claude.timezoneUnset") },
             ...CLAUDE_TIMEZONE_OPTIONS,
+            // 探测到的时区不在预置列表里时临时追加一项,直接选中而不是落到“自定义”。
+            ...(detectedTimezone && !findClaudeTimezoneOption(detectedTimezone)
+              ? [{ value: detectedTimezone, label: claudeTimezoneOffsetLabel(detectedTimezone) }]
+              : []),
             { value: CLAUDE_TIMEZONE_CUSTOM, label: t("claude.timezoneCustom") },
           ]}
         />
         {findClaudeTimezoneOption(timezone) ? <p className="text-[10px] text-muted-foreground">{claudeTimezoneLabel(timezone)}</p> : null}
-        {timezoneCustom ? <Input value={timezone} onChange={(e) => setTimezone(e.target.value)} placeholder={t("claude.timezonePlaceholder")} /> : null}
+        {timezoneCustom ? (
+          <Input
+            value={timezone}
+            onChange={(e) => {
+              setTimezoneTouched(true);
+              setTimezone(e.target.value);
+            }}
+            placeholder={t("claude.timezonePlaceholder")}
+          />
+        ) : null}
+        {useProxyPool ? (
+          <p className="text-[10px] text-muted-foreground">{t("claude.timezoneDetectPool")}</p>
+        ) : timezoneDetect === "detecting" ? (
+          <p className="text-[10px] text-muted-foreground">{t("claude.timezoneDetecting")}</p>
+        ) : timezoneDetect === "done" && timezone === detectedTimezone ? (
+          <p className="text-[10px] text-muted-foreground">{t("claude.timezoneDetected", { location: detectedLocation || detectedTimezone })}</p>
+        ) : timezoneDetect === "failed" ? (
+          <p className="text-[10px] text-muted-foreground">{t("claude.timezoneDetectFailed")}</p>
+        ) : null}
       </div>
       ) : null}
       {groups.length > 0 ? (
